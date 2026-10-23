@@ -9,7 +9,7 @@ BezierMesh::BezierMesh(Mesh const &aMesh) : mOriginalNeighbours(aMesh.getFace2ne
   for(uint32_t indexFace = 0u; indexFace < aMesh.size(); ++indexFace) {
     auto const &neigh = mOriginalNeighbours[indexFace];
     auto const &originalTriangle = aMesh[indexFace];
-    auto const originalCentroid = (originalTriangle[0u] + originalTriangle[1u] + originalTriangle[2u]) / 3.0f;
+    auto const originalCentroid = (originalTriangle[0u] + originalTriangle[1u] + originalTriangle[2u]) / 3.0;
     auto normal = util::getNormal(originalTriangle).normalized();
     for(uint32_t indexVertex = 0u; indexVertex < 3u; ++indexVertex) { // Appending a regular triangle means doing Clough-Tocher split on it and appending each small one.
       auto const &originalCommonVertex0 = originalTriangle[indexVertex];
@@ -42,7 +42,7 @@ void BezierMesh::setMissingFields(Mesh const &aMesh, MissingFieldsMethod aMissin
     auto const &trianglePrevious = mMesh[indexBase + (subTriangleIndex + 2u) % 3u];
     if(subTriangleIndex % 3u == 0u) {
       auto const &originalTriangle = aMesh[indexBase / 3u];
-      originalCentroid = (originalTriangle[0u] + originalTriangle[1u] + originalTriangle[2u]) / 3.0f;
+      originalCentroid = (originalTriangle[0u] + originalTriangle[1u] + originalTriangle[2u]) / 3.0;
     }
     else { // Nothing to do
     }
@@ -54,7 +54,7 @@ void BezierMesh::setMissingFields(Mesh const &aMesh, MissingFieldsMethod aMissin
 
 Mesh BezierMesh::interpolate(int32_t const aDivisor) const {
   Mesh result;
-  Triangle barycentric{Vertex{{1.0f, 0.0f, 0.0f}}, Vertex{{0.0f, 1.0f, 0.0f}}, Vertex{{0.0f, 0.0f, 1.0f}}};
+  Triangle barycentric{Vertex{{1.0, 0.0, 0.0}}, Vertex{{0.0, 1.0, 0.0}}, Vertex{{0.0, 0.0, 1.0}}};
   util::divide(barycentric, aDivisor, [&result, this](Triangle && aNewBary){
     for(auto const &bezier : mMesh) {
       result.push_back({ bezier.interpolate(aNewBary[0u]),
@@ -88,10 +88,10 @@ Mesh BezierMesh::splitThickBezierTriangles() const {
                         mMesh[indexSplit + 1u].getControlPoint(0u),
                         mMesh[indexSplit + 2u].getControlPoint(0u) };
     auto plane = Plane::createFromTriangle(original);
-    float max = ::abs(plane.distance(mMesh[indexOriginal * 3u].interpolateAboveOriginalCentroid()));
+    double max = ::abs(plane.distance(mMesh[indexOriginal * 3u].interpolateAboveOriginalCentroid()));
     for(uint32_t i = 0; i < 3u; ++i) {
       for(auto const ratio : csSampleRatiosOriginalSide) {
-        max = std::max(max, ::abs(plane.distance(mMesh[indexSplit + i].interpolate(ratio, 1.0f - ratio, 0.0f))));
+        max = std::max(max, ::abs(plane.distance(mMesh[indexSplit + i].interpolate(ratio, 1.0 - ratio, 0.0))));
       }
     }
     if(max / util::getPerimeter(original) > csBezierHeightPerPerimeterLimit) {
@@ -144,7 +144,7 @@ Mesh BezierMesh::splitThickBezierTriangles() const {
 void BezierMesh::append2split(Mesh &aResult, uint32_t const aIndexBase, Triangle const &aOriginalTriangle, uint8_t const aSplit) const {
   static constexpr uint8_t csIndexFor2onSide[8u] = { 3u, 0u, 1u, 3u, 2u, 3u, 3u, 3u };
   uint32_t index2 = csIndexFor2onSide[aSplit];
-  auto splitVertex = interpolate(aIndexBase + index2, 0.5f, 0.5f, 0.0f);
+  auto splitVertex = interpolate(aIndexBase + index2, 0.5, 0.5, 0.0);
   uint32_t indexAfter2 = (index2 + 1u) % 3u;
   uint32_t indexBefore2 = (index2 + 2u) % 3u;
   aResult.push_back(Triangle{ aOriginalTriangle[indexAfter2], aOriginalTriangle[indexBefore2], splitVertex });
@@ -164,8 +164,8 @@ void BezierMesh::append3split(Mesh &aResult, uint32_t const aIndexBase, Triangle
   uint32_t index1 = csIndexFor1onSide[aSplit];
   uint32_t indexAfter1 = (index1 + 1u) % 3u;
   uint32_t indexBefore1 = (index1 + 2u) % 3u;
-  auto splitVertexBefore1 = interpolate(aIndexBase + indexBefore1, 0.5f, 0.5f, 0.0f);
-  auto splitVertexAfter1  = interpolate(aIndexBase + indexAfter1, 0.5f, 0.5f, 0.0f);
+  auto splitVertexBefore1 = interpolate(aIndexBase + indexBefore1, 0.5, 0.5, 0.0);
+  auto splitVertexAfter1  = interpolate(aIndexBase + indexAfter1, 0.5, 0.5, 0.0);
   aResult.push_back(Triangle{ aOriginalTriangle[indexBefore1], splitVertexBefore1, splitVertexAfter1 });
   if((aOriginalTriangle[indexAfter1] - splitVertexBefore1).norm() < (aOriginalTriangle[index1] - splitVertexAfter1).norm()) {
     aResult.push_back(Triangle{ aOriginalTriangle[indexAfter1], splitVertexAfter1, splitVertexBefore1 });
@@ -189,7 +189,7 @@ void BezierMesh::append3split(Mesh &aResult, uint32_t const aIndexBase, Triangle
 void BezierMesh::append4split(Mesh &aResult, uint32_t const aIndexBase, Triangle const &aOriginalTriangle) const {
   Triangle middle;
   for(uint32_t i = 0u; i < 3u; ++i) {
-    middle[i] = interpolate(aIndexBase + i, 0.5f, 0.5f, 0.0f);
+    middle[i] = interpolate(aIndexBase + i, 0.5, 0.5, 0.0);
   }
   aResult.push_back(middle);
   for(uint32_t i = 0u; i < 3u; ++i) {
@@ -197,16 +197,16 @@ void BezierMesh::append4split(Mesh &aResult, uint32_t const aIndexBase, Triangle
   }
 }
 
-Vertex BezierMesh::interpolate(uint32_t const aIndex, float const aBary0, float const aBary1, float const aBary2) const {
+Vertex BezierMesh::interpolate(uint32_t const aIndex, double const aBary0, double const aBary1, double const aBary2) const {
   auto const &triangle = mMesh[aIndex];
   return triangle.interpolate(aBary0, aBary1, aBary2) * csSplitBezierInterpolateFactor +
-         triangle.interpolateLinear(aBary0, aBary1, aBary2) * (1.0f - csSplitBezierInterpolateFactor);
+         triangle.interpolateLinear(aBary0, aBary1, aBary2) * (1.0 - csSplitBezierInterpolateFactor);
 }
 
 BezierIntersection BezierMesh::intersect(Ray const &aRay) const {
   // Brute-force for now
   BezierIntersection result;
-  result.mIntersection.mDistance = std::numeric_limits<float>::max();
+  result.mIntersection.mDistance = std::numeric_limits<double>::max();
   result.mWhat = BezierIntersection::What::cNone;
   for(auto const &bezier : mMesh) {
     auto candidate = bezier.intersect(aRay, BezierTriangle::LimitPlaneIntersection::cThis);

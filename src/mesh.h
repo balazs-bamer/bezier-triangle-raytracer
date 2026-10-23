@@ -17,9 +17,9 @@
 
 class Mesh final {
 private:
-  static constexpr float csStandardizeVerticesEpsilonFactor        = 0.2;
-  static constexpr float csStandardizeNormalsEpsilon               = 0.01;
-  static constexpr float csStandardizeNormalsIndependentMoveFactor = 0.2;
+  static constexpr double csStandardizeVerticesEpsilonFactor        = 0.2;
+  static constexpr double csStandardizeNormalsEpsilon               = 0.01;
+  static constexpr double csStandardizeNormalsIndependentMoveFactor = 0.2;
 
 public:
   using TheMesh         = std::vector<Triangle>;
@@ -33,7 +33,7 @@ public:
 
   struct VertexHash {
     std::size_t operator()(Vertex const &aVertex) const {
-      return std::hash<float>{}(aVertex[0]) ^ (std::hash<float>{}(aVertex[1]) << 1u) ^ (std::hash<float>{}(aVertex[2]) << 2u);
+      return std::hash<double>{}(aVertex[0]) ^ (std::hash<double>{}(aVertex[1]) << 1u) ^ (std::hash<double>{}(aVertex[2]) << 2u);
     }
   };
 
@@ -74,7 +74,7 @@ public:
 
 /// Makes all normalvectors (V[1]-V[0])x(V[2]-V[0]) point outwards.
 /// Should run after standardizeVertices.
-/// But not after auto divideLargeTriangles(float const aMaxTriangleSide), because it will probably put vertices on edges of other triangles.
+/// But not after auto divideLargeTriangles(double const aMaxTriangleSide), because it will probably put vertices on edges of other triangles.
 /// Only this method populates the member variable mFace2neighbours and mVertex2averageNormals
   void standardizeNormals();
 
@@ -82,10 +82,10 @@ public:
 
   Mesh& operator+=(Vector const aDisplacement)  { transform(Transform::Identity(),           aDisplacement);  return *this; }
   Mesh& operator*=(Transform const &aTransform) { transform(aTransform,                      Vertex::Zero()); return *this; }
-  Mesh& operator*=(float const &aFactor)        { transform(Transform::Identity() * aFactor, Vertex::Zero()); return *this; }
+  Mesh& operator*=(double const &aFactor)        { transform(Transform::Identity() * aFactor, Vertex::Zero()); return *this; }
 
 /// WARNING! Likely to put new vertices on edges!
-  void splitTriangles(float const aMaxTriangleSide);
+  void splitTriangles(double const aMaxTriangleSide);
 
 /// Splits every triangle such that each will become (aDivisor + 1)(aDivisor + 2)/2 new small ones.
   void splitTriangles(int32_t const aDivisor);
@@ -95,20 +95,20 @@ public:
   void writeMesh(std::string const &aFilename) const;
 
   /// aEnvelope is a C2 function in [-1, 1], with prefereably vertical tangents in -1 and 1 and values of 0 in -1 and 1.
-  void makeSolidOfRevolution(int32_t const aSectors, int32_t const aBelts, std::function<float(float)> aEnvelope, Vector const &aSize);
-  void makeEllipsoid(int32_t const aSectors, int32_t const aBelts, Vector const &aSize) { makeSolidOfRevolution(aSectors, aBelts, [](float const aX){ return ::sqrt(1 - aX * aX); }, aSize); }
-  void makeUnitSphere(int32_t const aSectors, int32_t const aBelts) { makeEllipsoid(aSectors, aBelts, Vector(1.0f, 1.0f, 1.0f)); }
+  void makeSolidOfRevolution(int32_t const aSectors, int32_t const aBelts, std::function<double(double)> aEnvelope, Vector const &aSize);
+  void makeEllipsoid(int32_t const aSectors, int32_t const aBelts, Vector const &aSize) { makeSolidOfRevolution(aSectors, aBelts, [](double const aX){ return ::sqrt(1 - aX * aX); }, aSize); }
+  void makeUnitSphere(int32_t const aSectors, int32_t const aBelts) { makeEllipsoid(aSectors, aBelts, Vector(1.0, 1.0, 1.0)); }
 
 private:
-  float getSmallestSide() const;
+  double getSmallestSide() const;
 
-  using ProjectedIndices = std::multimap<float, std::pair<uint32_t, uint32_t>>;
+  using ProjectedIndices = std::multimap<double, std::pair<uint32_t, uint32_t>>;
   using Iterator = typename ProjectedIndices::const_iterator;
   using Intervals = std::deque<std::pair<Iterator, Iterator>>;
 
   void projectVertices(ProjectedIndices &aCurrentProjectedSorted, int32_t const aDimension) const;
-  float makeProximityIntervals(ProjectedIndices const &aCurrentProjectedSorted, Intervals &aCurrentIntervals, float const aEpsilon) const;
-  void standardizeInIntervals(Intervals const &aIntervals, float const aEpsilonSquared);
+  double makeProximityIntervals(ProjectedIndices const &aCurrentProjectedSorted, Intervals &aCurrentIntervals, double const aEpsilon) const;
+  void standardizeInIntervals(Intervals const &aIntervals, double const aEpsilonSquared);
   static uint32_t getIndependentFrom(Triangle const &aFaceTarget, Triangle const &aFaceOther);
 
   struct PairHash {
@@ -123,7 +123,7 @@ private:
   using Vertex2index = std::unordered_map<Vertex, uint32_t, VertexHash>;
 
   std::tuple<Edge2face, Face2vertex, Vertex2index> createEdge2faceFace2vertex() const;
-  std::pair<float, std::unordered_set<uint32_t>> getSmallestXstuff(Face2vertex const &aFace2vertex, Vertex2index const &) const;
+  std::pair<double, std::unordered_set<uint32_t>> getSmallestXstuff(Face2vertex const &aFace2vertex, Vertex2index const &) const;
   void createFace2neighbour(Edge2face const &aEdge2face, Face2vertex const &aFace2vertex);
   uint32_t getInitialFaceIndex(std::unordered_set<uint32_t> const &aFacesAtSmallestX, Vertex const &aDesiredVector) const;
   static void normalize(Triangle &aFace, Vertex const &aDesiredVector);

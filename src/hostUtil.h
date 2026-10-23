@@ -7,11 +7,11 @@
 
 class UniformHemisphere final {
 private:
-  float const                             cmBeltWidth;
-  std::vector<std::pair<float, uint32_t>>  mBelts;
+  double const                             cmBeltWidth;
+  std::vector<std::pair<double, uint32_t>>  mBelts;
   std::ranlux24_base                       mRandomGenerator;
-  std::uniform_real_distribution<float>    mUniform1;
-  std::uniform_real_distribution<float>    mUniform2pi;
+  std::uniform_real_distribution<double>    mUniform1;
+  std::uniform_real_distribution<double>    mUniform2pi;
   uint32_t                                 mPatchCount;
 
 public:

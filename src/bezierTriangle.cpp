@@ -31,8 +31,8 @@ BezierTriangle::BezierTriangle(Vertex const &aOriginalCommonVertex0, Vertex cons
                                                                              perpendicularToSplitBetweenTrianglesInProportion1);
 
   Plane const perpendicularToPlaneBetweenOriginalNeighboursViaControlPointsInOriginalSide = Plane::createFrom1vector2points(aPlaneBetweenOriginalNeighbours.mNormal, mControlPoints[csControlIndexOnOriginalSide0], mControlPoints[csControlIndexOnOriginalSide1]);
-  Plane const halfPlaneOfControlPointsInOriginalSide = Plane::createFrom1proportion2points(0.5f, mControlPoints[csControlIndexOnOriginalSide0], mControlPoints[csControlIndexOnOriginalSide1]);
-  Plane const perpendicularToOriginalMedianInProportion = Plane::createFrom1proportion2points(csProportionControlOnOriginalMedian, (aOriginalCommonVertex0 + aOriginalCommonVertex1) / 2.0f, aOriginalCentroid);
+  Plane const halfPlaneOfControlPointsInOriginalSide = Plane::createFrom1proportion2points(0.5, mControlPoints[csControlIndexOnOriginalSide0], mControlPoints[csControlIndexOnOriginalSide1]);
+  Plane const perpendicularToOriginalMedianInProportion = Plane::createFrom1proportion2points(csProportionControlOnOriginalMedian, (aOriginalCommonVertex0 + aOriginalCommonVertex1) / 2.0, aOriginalCentroid);
 
   mControlPoints[csControlIndexMiddle] = Plane::intersect(perpendicularToPlaneBetweenOriginalNeighboursViaControlPointsInOriginalSide,
                                                           halfPlaneOfControlPointsInOriginalSide,
@@ -62,15 +62,15 @@ void BezierTriangle::setMissingFields1(Vertex const &aOriginalCentroid, BezierTr
 void BezierTriangle::setMissingFields2(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &) {
   mControlPoints[csControlIndexAboveOriginalCentroid] = (mControlPoints[csControlIndexOnSideFromOriginalCentroid0] +
                                                          mControlPoints[csControlIndexOnSideToOriginalCentroid1] +
-                                                         aTriangleNext.mControlPoints[csControlIndexOnSideToOriginalCentroid1]) / 3.0f;
+                                                         aTriangleNext.mControlPoints[csControlIndexOnSideToOriginalCentroid1]) / 3.0;
 
   mUnderlyingPlane = Plane::createFrom3points(mControlPoints[csControlIndexOriginalVertex0], mControlPoints[csControlIndexOriginalVertex1], mControlPoints[csControlIndexAboveOriginalCentroid]);
 
   mBarycentricInverse = util::getBarycentricInverse(mControlPoints[csControlIndexOriginalVertex0], mControlPoints[csControlIndexOriginalVertex1], mControlPoints[csControlIndexAboveOriginalCentroid]);
 
-  mHeightInside = 0.0f;
-  mHeightOutside = 0.0f;
-  Triangle barycentric{Vertex{{1.0f, 0.0f, 0.0f}}, Vertex{{0.0f, 1.0f, 0.0f}}, Vertex{{0.0f, 0.0f, 1.0f}}};
+  mHeightInside = 0.0;
+  mHeightOutside = 0.0;
+  Triangle barycentric{Vertex{{1.0, 0.0, 0.0}}, Vertex{{0.0, 1.0, 0.0}}, Vertex{{0.0, 0.0, 1.0}}};
   util::divide(barycentric, csHeightSampleDivisor, [this](Triangle && aNewBary) {
     for(uint32_t i = 0u; i < 3u; ++i) {
       auto distance = mUnderlyingPlane.distance(interpolate(aNewBary[i]));  // Will cont most points 2 or 3 times, but don't care now.
@@ -80,7 +80,7 @@ void BezierTriangle::setMissingFields2(Vertex const &, BezierTriangle const &aTr
   } );
   mHeightInside *= csHeightSafetyFactor;
   mHeightOutside *= csHeightSafetyFactor;
-  mBezierDerivativeDirectionVectorA = Vertex{1.0f, 0.0f, -1.0f}; // Parallel to the side from 2 to 0, no matter how long.
+  mBezierDerivativeDirectionVectorA = Vertex{1.0, 0.0, -1.0}; // Parallel to the side from 2 to 0, no matter how long.
   mBezierDerivativeDirectionVectorB = mBarycentricInverse *      // Perpendicular to the previous one.
       (mControlPoints[csControlIndexAboveOriginalCentroid] - mControlPoints[csControlIndexOriginalVertex0]).cross(mUnderlyingPlane.mNormal);
 }
@@ -96,13 +96,13 @@ void BezierTriangle::setMissingFields3(Vertex const &, BezierTriangle const &aTr
   mNeighbourDividerPlanes[2u].makeDistancePositive(mControlPoints[csControlIndexMiddle]);
 }
 
-Vertex BezierTriangle::interpolateLinear(float const aBary0, float const aBary1, float const aBary2) const {
+Vertex BezierTriangle::interpolateLinear(double const aBary0, double const aBary1, double const aBary2) const {
   return mControlPoints[csControlIndexOriginalVertex0]       * aBary0 +
          mControlPoints[csControlIndexOriginalVertex1]       * aBary1 +
          mControlPoints[csControlIndexAboveOriginalCentroid] * aBary2;
 }
 
-Vertex BezierTriangle::interpolate(float const aBary0, float const aBary1, float const aBary2) const {
+Vertex BezierTriangle::interpolate(double const aBary0, double const aBary1, double const aBary2) const {
   auto const bary0_2 = aBary0 * aBary0;
   auto const bary1_2 = aBary1 * aBary1;
   auto const bary2_2 = aBary2 * aBary2;
@@ -110,14 +110,14 @@ Vertex BezierTriangle::interpolate(float const aBary0, float const aBary1, float
   return mControlPoints[csControlIndexOriginalVertex0]             * aBary0 * bary0_2 +
          mControlPoints[csControlIndexOriginalVertex1]             * aBary1 * bary1_2 +
          mControlPoints[csControlIndexAboveOriginalCentroid]       * aBary2 * bary2_2 +
-         3.0f *
+         3.0 *
         (mControlPoints[csControlIndexOnOriginalSide0]             * aBary1 * bary0_2 +
          mControlPoints[csControlIndexOnOriginalSide1]             * aBary0 * bary1_2 +
          mControlPoints[csControlIndexOnSideToOriginalCentroid0]   * aBary2 * bary1_2 +
          mControlPoints[csControlIndexOnSideToOriginalCentroid1]   * aBary1 * bary2_2 +
          mControlPoints[csControlIndexOnSideFromOriginalCentroid0] * aBary0 * bary2_2 +
          mControlPoints[csControlIndexOnSideFromOriginalCentroid1] * aBary2 * bary0_2) +
-         mControlPoints[csControlIndexMiddle]                      * aBary0 * aBary1 * aBary2 * 6.0f;
+         mControlPoints[csControlIndexMiddle]                      * aBary0 * aBary1 * aBary2 * 6.0;
 }
 
 BezierIntersection BezierTriangle::intersect(Ray const &aRay, LimitPlaneIntersection const aShouldLimitPlaneIntersection) const {
@@ -126,13 +126,13 @@ BezierIntersection BezierTriangle::intersect(Ray const &aRay, LimitPlaneIntersec
   if(inPlane.mValid && ::abs(inPlane.mDistance) > -mHeightInside && ::abs(inPlane.mDistance) > mHeightOutside) {  // Make sure we don't intersect the same triangle again
     Vector barycentric = mBarycentricInverse * inPlane.mPoint;
     if(aShouldLimitPlaneIntersection == LimitPlaneIntersection::cNone ||
-       (barycentric(0) >= 0.0f && barycentric(0) <= 1.0f &&
-        barycentric(1) >= 0.0f && barycentric(1) <= 1.0f &&
-        barycentric(2) >= 0.0f && barycentric(2) <= 1.0f)) {
+       (barycentric(0) >= 0.0 && barycentric(0) <= 1.0 &&
+        barycentric(1) >= 0.0 && barycentric(1) <= 1.0 &&
+        barycentric(2) >= 0.0 && barycentric(2) <= 1.0)) {
       auto distanceInside = mHeightInside / inPlane.mCosIncidence;
       auto distanceOutside = mHeightOutside / inPlane.mCosIncidence;
-      float closer = inPlane.mDistance + (inPlane.mCosIncidence > 0.0f ? distanceInside : distanceOutside);
-      float further = inPlane.mDistance + (inPlane.mCosIncidence > 0.0f ? distanceOutside : distanceInside);
+      double closer = inPlane.mDistance + (inPlane.mCosIncidence > 0.0 ? distanceInside : distanceOutside);
+      double further = inPlane.mDistance + (inPlane.mCosIncidence > 0.0 ? distanceOutside : distanceInside);
 
       Vertex pointOnRay = aRay.mStart + aRay.mDirection * closer;
       Vertex barycentric = mBarycentricInverse * mUnderlyingPlane.project(pointOnRay);
@@ -142,10 +142,10 @@ BezierIntersection BezierTriangle::intersect(Ray const &aRay, LimitPlaneIntersec
       barycentric = mBarycentricInverse * mUnderlyingPlane.project(pointOnRay);
       auto diffFurther = ::abs(mUnderlyingPlane.distance(pointOnRay)) - ::abs(mUnderlyingPlane.distance(interpolate(barycentric)));
 
-      float middle;
+      double middle;
       auto denom = diffCloser - diffFurther;
       if(::abs(denom) < csIntersectionEstimationEpsilon) {
-        middle = (closer + further) / 2.0f;
+        middle = (closer + further) / 2.0;
       }
       else {
         middle = (diffCloser * further - diffFurther * closer) / denom;
@@ -166,9 +166,9 @@ BezierIntersection BezierTriangle::intersect(Ray const &aRay, LimitPlaneIntersec
         result.mWhat = BezierIntersection::What::cNone;
       }
       else {
-        uint32_t outside = (mNeighbourDividerPlanes[0].distance(result.mIntersection.mPoint) < 0.0f ? 1u : 0u);
-        outside |= (mNeighbourDividerPlanes[1].distance(result.mIntersection.mPoint) < 0.0f ? 2u : 0u);
-        outside |= (mNeighbourDividerPlanes[2].distance(result.mIntersection.mPoint) < 0.0f ? 4u : 0u);
+        uint32_t outside = (mNeighbourDividerPlanes[0].distance(result.mIntersection.mPoint) < 0.0 ? 1u : 0u);
+        outside |= (mNeighbourDividerPlanes[1].distance(result.mIntersection.mPoint) < 0.0 ? 2u : 0u);
+        outside |= (mNeighbourDividerPlanes[2].distance(result.mIntersection.mPoint) < 0.0 ? 4u : 0u);
         if(outside == 1u) {
           result.mWhat = BezierIntersection::What::cFollowSide0;
         }
@@ -195,14 +195,14 @@ BezierIntersection BezierTriangle::intersect(Ray const &aRay, LimitPlaneIntersec
 }
 
 Vector BezierTriangle::getNormal(Vector const &aBarycentric) const {
-  float bary0_2 = aBarycentric(0) * aBarycentric(0);
-  float bary1_2 = aBarycentric(1) * aBarycentric(1);
-  float bary2_2 = aBarycentric(2) * aBarycentric(2);
+  double bary0_2 = aBarycentric(0) * aBarycentric(0);
+  double bary1_2 = aBarycentric(1) * aBarycentric(1);
+  double bary2_2 = aBarycentric(2) * aBarycentric(2);
 
   Vector component0 = mControlPoints[csControlIndex300] * bary0_2 +
                       mControlPoints[csControlIndex102] * bary2_2 +
                       mControlPoints[csControlIndex120] * bary1_2 +
-                      2.0f *
+                      2.0 *
                      (mControlPoints[csControlIndex201] * aBarycentric(0) * aBarycentric(2) +
                       mControlPoints[csControlIndex210] * aBarycentric(0) * aBarycentric(1) +
                       mControlPoints[csControlIndex111] * aBarycentric(2) * aBarycentric(1));
@@ -210,7 +210,7 @@ Vector BezierTriangle::getNormal(Vector const &aBarycentric) const {
   Vector component1 = mControlPoints[csControlIndex030] * bary1_2 +
                       mControlPoints[csControlIndex012] * bary2_2 +
                       mControlPoints[csControlIndex210] * bary0_2 +
-                      2.0f *
+                      2.0 *
                      (mControlPoints[csControlIndex111] * aBarycentric(0) * aBarycentric(2) +
                       mControlPoints[csControlIndex120] * aBarycentric(0) * aBarycentric(1) +
                       mControlPoints[csControlIndex021] * aBarycentric(1) * aBarycentric(2));
@@ -218,7 +218,7 @@ Vector BezierTriangle::getNormal(Vector const &aBarycentric) const {
   Vector component2 = mControlPoints[csControlIndex003] * bary2_2 +
                       mControlPoints[csControlIndex201] * bary0_2 +
                       mControlPoints[csControlIndex021] * bary1_2 +
-                      2.0f *
+                      2.0 *
                      (mControlPoints[csControlIndex102] * aBarycentric(0) * aBarycentric(2) +
                       mControlPoints[csControlIndex012] * aBarycentric(1) * aBarycentric(2) +
                       mControlPoints[csControlIndex111] * aBarycentric(0) * aBarycentric(1));

@@ -7,14 +7,14 @@
 
 #include <Eigen/Dense>
 
-constexpr float cgPi = 3.14159265358979323846;
-constexpr float cgGeneralEpsilon = 1.0e-5;
+constexpr double cgPi = 3.14159265358979323846;
+constexpr double cgGeneralEpsilon = 1.0e-5;
 
 
-using Vector         = Eigen::Matrix<float, 3, 1>;
-using Vertex         = Eigen::Matrix<float, 3, 1>;
-using Matrix         = Eigen::Matrix<float, 3, 3>;
-using Transform      = Eigen::Matrix<float, 3, 3>;
+using Vector         = Eigen::Matrix<double, 3, 1>;
+using Vertex         = Eigen::Matrix<double, 3, 1>;
+using Matrix         = Eigen::Matrix<double, 3, 3>;
+using Transform      = Eigen::Matrix<double, 3, 3>;
 using Triangle       = std::array<Vertex, 3u>;
 
 
@@ -28,26 +28,26 @@ struct util {
     return (aVertex1 - aVertex0).cross(aVertex2 - aVertex0);
   }
 
-  static float getPerimeter(Triangle const &aTriangle) {
+  static double getPerimeter(Triangle const &aTriangle) {
     return (aTriangle[0u] - aTriangle[1u]).norm() + (aTriangle[1u] - aTriangle[2u]).norm() + (aTriangle[2u] - aTriangle[0u]).norm();
   }
 
   // Assumes sum(aB*) == 1
-  static Vertex barycentric2cartesian(Triangle const &aTriangle, float const aB0, float const aB1, float const aB2) {
+  static Vertex barycentric2cartesian(Triangle const &aTriangle, double const aB0, double const aB1, double const aB2) {
     return aTriangle[0u] * aB0 + aTriangle[1u] * aB1 + aTriangle[2u] * aB2;
   }
 
-  static Vertex barycentric2cartesian(Triangle const &aTriangle, float const aB0, float const aB1) {
-    return aTriangle[0u] * aB0 + aTriangle[1u] * aB1 + aTriangle[2u] * (1.0f - aB0 - aB1);
+  static Vertex barycentric2cartesian(Triangle const &aTriangle, double const aB0, double const aB1) {
+    return aTriangle[0u] * aB0 + aTriangle[1u] * aB1 + aTriangle[2u] * (1.0 - aB0 - aB1);
   }
 
   // Assumes sum(aB*) == 1
-  static Vertex barycentric2cartesian(Vertex const &aV0, Vertex const &aV1, Vertex const &aV2, float const aB0, float const aB1, float const aB2) {
+  static Vertex barycentric2cartesian(Vertex const &aV0, Vertex const &aV1, Vertex const &aV2, double const aB0, double const aB1, double const aB2) {
     return aV0 * aB0 + aV1 * aB1 + aV2 * aB2;
   }
 
-  static Vertex barycentric2cartesian(Vertex const &aV0, Vertex const &aV1, Vertex const &aV2, float const aB0, float const aB1) {
-    return aV0 * aB0 + aV1 * aB1 + aV2 * (1.0f - aB0 - aB1);
+  static Vertex barycentric2cartesian(Vertex const &aV0, Vertex const &aV1, Vertex const &aV2, double const aB0, double const aB1) {
+    return aV0 * aB0 + aV1 * aB1 + aV2 * (1.0 - aB0 - aB1);
   }
 
   static Matrix getBarycentricInverse(Vertex const &aVertex0, Vertex const &aVertex1, Vertex const &aVertex2) {
@@ -60,13 +60,13 @@ struct util {
   }
 
   static Vector getAperpendicular(Vector const &aVector) {
-    static constexpr float csEpsilon = 1e-10;
+    static constexpr double csEpsilon = 1e-10;
 
     Vector result;
-    result(0) = 0.0f;
+    result(0) = 0.0;
     if(::abs(aVector(1)) < csEpsilon && ::abs(aVector(2)) < csEpsilon) {
-      result(1) = 1.0f;
-      result(2) = 0.0f;
+      result(1) = 1.0;
+      result(2) = 0.0;
     }
     else {
       auto denominator = ::sqrt(aVector(1) * aVector(1) + aVector(2) * aVector(2));
@@ -115,27 +115,27 @@ struct util {
   // 2 between 003 and 300
   static uint32_t toWhichSide(Vertex const &aStart, Vertex const &aEnd) {
     uint32_t result = 3u;
-    float denom = aStart(0) - aEnd(0) + aStart(1) - aEnd(1);
+    double denom = aStart(0) - aEnd(0) + aStart(1) - aEnd(1);
     if(::abs(denom) > cgGeneralEpsilon) {
-      auto ratio = ((aStart(0) - 1.0f) * aEnd(1) - aStart(1) * (aEnd(0) - 1.0f)) / denom;
-      auto direction = (aStart(0) + aStart(1) - 1.0f) / denom;
-      result = (ratio > -cgGeneralEpsilon && ratio < 1.0f + cgGeneralEpsilon && direction > 0.0f) ? 0u : result;
+      auto ratio = ((aStart(0) - 1.0) * aEnd(1) - aStart(1) * (aEnd(0) - 1.0)) / denom;
+      auto direction = (aStart(0) + aStart(1) - 1.0) / denom;
+      result = (ratio > -cgGeneralEpsilon && ratio < 1.0 + cgGeneralEpsilon && direction > 0.0) ? 0u : result;
     }
     else { // nothing to do
     }
     denom = aStart(1) - aEnd(1) + aStart(2) - aEnd(2);
     if(::abs(denom) > cgGeneralEpsilon) {
-      auto ratio = ((aStart(1) - 1.0f) * aEnd(2) - aStart(2) * (aEnd(1) - 1.0f)) / denom;
-      auto direction = (aStart(1) + aStart(2) - 1.0f) / denom;
-      result = (ratio > -cgGeneralEpsilon && ratio < 1.0f + cgGeneralEpsilon && direction > 0.0f) ? 1u : result;
+      auto ratio = ((aStart(1) - 1.0) * aEnd(2) - aStart(2) * (aEnd(1) - 1.0)) / denom;
+      auto direction = (aStart(1) + aStart(2) - 1.0) / denom;
+      result = (ratio > -cgGeneralEpsilon && ratio < 1.0 + cgGeneralEpsilon && direction > 0.0) ? 1u : result;
     }
     else { // nothing to do
     }
     denom = aStart(2) - aEnd(2) + aStart(0) - aEnd(0);
     if(::abs(denom) > cgGeneralEpsilon) {
-      auto ratio = ((aStart(2) - 1.0f) * aEnd(0) - aStart(0) * (aEnd(2) - 1.0f)) / denom;
-      auto direction = (aStart(2) + aStart(0) - 1.0f) / denom;
-      result = (ratio > -cgGeneralEpsilon && ratio < 1.0f + cgGeneralEpsilon && direction > 0.0f) ? 2u : result;
+      auto ratio = ((aStart(2) - 1.0) * aEnd(0) - aStart(0) * (aEnd(2) - 1.0)) / denom;
+      auto direction = (aStart(2) + aStart(0) - 1.0) / denom;
+      result = (ratio > -cgGeneralEpsilon && ratio < 1.0 + cgGeneralEpsilon && direction > 0.0) ? 2u : result;
     }
     else { // nothing to do
     }
@@ -160,17 +160,17 @@ struct Ray final {
   }
 
   // Does not consider that a ray is a half-line.
-  float getDistance(Vertex const &aPoint) const {
+  double getDistance(Vertex const &aPoint) const {
     return getPerpendicularTo(aPoint).norm();
   }
 
   // Does not consider that a ray is a half-line.
-  float getDistance2(Vertex const &aPoint) const {
+  double getDistance2(Vertex const &aPoint) const {
     return getPerpendicularTo(aPoint).squaredNorm();
   }
 
-  float getAverageErrorSquared(std::vector<Vertex> const &aPoints) const {
-    float sum = 0.0f;
+  double getAverageErrorSquared(std::vector<Vertex> const &aPoints) const {
+    double sum = 0.0;
     for(auto const &point : aPoints) {
       sum += getDistance2(point);
     }
@@ -182,28 +182,28 @@ struct Ray final {
 struct Intersection final {
   bool   mValid;         // Will be true even if distance < 0, because it can be important.
   Vertex mPoint;
-  float  mCosIncidence;  // Negative if the ray comes from outside, so the surface normal and the ray point in opposite direction.
-  float  mDistance;      // Distance of ray source point and intersection point.
+  double  mCosIncidence;  // Negative if the ray comes from outside, so the surface normal and the ray point in opposite direction.
+  double  mDistance;      // Distance of ray source point and intersection point.
 };
 
 
 // Plane equation is in the form of point.dot(mNormal) == mConstant where point is any point in the plane.
 struct Plane final {
-  static constexpr float csRayPlaneIntersectionEpsilon = 0.00001f;
+  static constexpr double csRayPlaneIntersectionEpsilon = 0.00001;
 
   Vector mNormal;        // normalized
-  float  mConstant;
+  double  mConstant;
 
   Plane() = default;
 
   // aNormal must be normalized.
-  Plane(Vector const &aNormal, float const aConstant) : mNormal(aNormal), mConstant(aConstant) {}
+  Plane(Vector const &aNormal, double const aConstant) : mNormal(aNormal), mConstant(aConstant) {}
 
   // If aProportion < 0.5, the result will be closer to aPoint0
-  static Plane         createFrom1proportion2points(float const aProportion, Vertex const &aPoint0, Vertex const &aPoint1) {
+  static Plane         createFrom1proportion2points(double const aProportion, Vertex const &aPoint0, Vertex const &aPoint1) {
     Plane result;
     result.mNormal = (aPoint1 - aPoint0).normalized();
-    result.mConstant = result.mNormal.dot(aPoint1 * aProportion + aPoint0 * (1.0f - aProportion));
+    result.mConstant = result.mNormal.dot(aPoint1 * aProportion + aPoint0 * (1.0 - aProportion));
     return result;
   }
 
@@ -245,7 +245,7 @@ struct Plane final {
     result.mCosIncidence = aDirection.dot(mNormal);
     if(::abs(result.mCosIncidence) >= csRayPlaneIntersectionEpsilon) {
       result.mDistance = (mConstant - mNormal.dot(aStart)) / result.mCosIncidence;
-      if(result.mDistance > 0.0f) {
+      if(result.mDistance > 0.0) {
         result.mValid = true;
         result.mPoint = aStart + result.mDistance * aDirection;
       }
@@ -265,10 +265,10 @@ struct Plane final {
   Vector        project(Vector const &aPoint) const { return aPoint - mNormal * (aPoint.dot(mNormal) - mConstant); }
 
   // Distance of point and this plane, >0 if the normal points towards the point.
-  float                distance(Vector const &aPoint) const { return aPoint.dot(mNormal) - mConstant; }
+  double                distance(Vector const &aPoint) const { return aPoint.dot(mNormal) - mConstant; }
 
   void                 makeDistancePositive(Vector const aPoint) {
-    if(distance(aPoint) < 0.0f) {
+    if(distance(aPoint) < 0.0) {
       mNormal = -mNormal;
       mConstant = -mConstant;
     }
@@ -277,7 +277,7 @@ struct Plane final {
   }
 
   void                 makeDistanceNegative(Vector const aPoint) {
-    if(distance(aPoint) > 0.0f) {
+    if(distance(aPoint) > 0.0) {
       mNormal = -mNormal;
       mConstant = -mConstant;
     }
@@ -293,12 +293,12 @@ struct Plane final {
 
 
 struct Spherical final {
-  float mR;
-  float mAzimuth; // or sector
-  float mInclination;  // or belt
+  double mR;
+  double mAzimuth; // or sector
+  double mInclination;  // or belt
 
   // Assumes the conversion can be done.
-  Spherical(float const aX, float const aY, float const aZ)
+  Spherical(double const aX, double const aY, double const aZ)
   : mR(::sqrt(aX * aX + aY * aY + aZ * aZ))
   , mInclination(::acos(aZ / mR))
   , mAzimuth(::atan2(aY, aX)) {}
@@ -307,11 +307,11 @@ struct Spherical final {
 
 struct Sphere final {  // TODO consider if we need this for bounding sphere intersection or do it by hand. Problem is ray is a half-line and this would also need to store r2.
   Vector mCenter;
-  float  mRadius;
+  double  mRadius;
 
   Sphere() = default;
 
-  Sphere(Vector const &aCenter, float const aRadius) : mCenter(aCenter), mRadius(aRadius) {}
+  Sphere(Vector const &aCenter, double const aRadius) : mCenter(aCenter), mRadius(aRadius) {}
 
   bool doesIntersect(Ray const aRay);
 };

@@ -7,14 +7,14 @@
 #include "gtest/gtest.h"
 
 
-constexpr float cgEpsilon = 0.0001f;
+constexpr double cgEpsilon = 0.0001;
 
 std::ostream& operator<<(std::ostream &aOut, Plane const &aPlane) {
   aOut << aPlane.mNormal(0) << ' ' << aPlane.mNormal(1) << ' ' << aPlane.mNormal(2) << ' ' << " : " << aPlane.mConstant;
   return aOut;
 }
 
-bool eq(Vector const &aV1, Vector const &aV2, float const aEpsilon) {
+bool eq(Vector const &aV1, Vector const &aV2, double const aEpsilon) {
   return (aV1 - aV2).norm() < aEpsilon;
 }
 
@@ -22,11 +22,11 @@ bool eq(Vector const &aV1, Vector const &aV2) {
   return eq(aV1, aV2, cgEpsilon);
 }
 
-bool eq(float const aF1, float const aF2, float const aEpsilon) {
+bool eq(double const aF1, double const aF2, double const aEpsilon) {
   return ::abs(aF1 - aF2) < aEpsilon;
 }
 
-bool eq(float const aF1, float const aF2) {
+bool eq(double const aF1, double const aF2) {
   return eq(aF1, aF2, cgEpsilon);
 }
 
@@ -44,23 +44,23 @@ Vertex getPlaneIntersectionNormals(Vertex aPoint,
 }
 
 TEST(vector, getAperpendicular) {
-  static constexpr float csEpsilon = 1e-10;
+  static constexpr double csEpsilon = 1e-10;
   {
-    Vector vector{1.0f, 0.0f, 0.0f};
+    Vector vector{1.0, 0.0, 0.0};
     EXPECT_LT(::abs(util::getAperpendicular(vector).dot(vector)), csEpsilon);
   }
   {
-    Vector vector{1.0f, 1.0f, 0.0f};
+    Vector vector{1.0, 1.0, 0.0};
     vector.normalize();
     EXPECT_LT(::abs(util::getAperpendicular(vector).dot(vector)), csEpsilon);
   }
   {
-    Vector vector{1.0f, 0.0f, 1.0f};
+    Vector vector{1.0, 0.0, 1.0};
     vector.normalize();
     EXPECT_LT(::abs(util::getAperpendicular(vector).dot(vector)), csEpsilon);
   }
   {
-    Vector vector{1.0f, -1.0f, -1.0f};
+    Vector vector{1.0, -1.0, -1.0};
     vector.normalize();
     EXPECT_LT(::abs(util::getAperpendicular(vector).dot(vector)), csEpsilon);
   }
@@ -68,74 +68,74 @@ TEST(vector, getAperpendicular) {
 
 TEST(ray, averageErrorSquared) {
   {
-    Ray ray({0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f});
+    Ray ray({0.0, 0.0, 0.0}, {1.0, 0.0, 0.0});
     std::vector<Vertex> points{};
-    EXPECT_EQ(ray.getAverageErrorSquared(points), 0.0f);
+    EXPECT_EQ(ray.getAverageErrorSquared(points), 0.0);
   }
   {
-    Ray ray({0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f});
-    std::vector<Vertex> points{{2.0f, 0.0f, 0.0f}, {-3.0f, 0.0f, 0.0f}};
-    EXPECT_EQ(ray.getAverageErrorSquared(points), 0.0f);
+    Ray ray({0.0, 0.0, 0.0}, {1.0, 0.0, 0.0});
+    std::vector<Vertex> points{{2.0, 0.0, 0.0}, {-3.0, 0.0, 0.0}};
+    EXPECT_EQ(ray.getAverageErrorSquared(points), 0.0);
   }
   {
-    Ray ray({0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f});
-    std::vector<Vertex> points{{2.0f, 1.0f, 0.0f}, {-3.0f, 0.0f, 1.0f}};
-    EXPECT_GT(ray.getAverageErrorSquared(points), 0.0f);
+    Ray ray({0.0, 0.0, 0.0}, {1.0, 0.0, 0.0});
+    std::vector<Vertex> points{{2.0, 1.0, 0.0}, {-3.0, 0.0, 1.0}};
+    EXPECT_GT(ray.getAverageErrorSquared(points), 0.0);
   }
 }
 
 TEST(planeIntersection, Normals) {
   {
-    Vertex common{1.0f, 2.0f, 3.0f};
-    auto result = getPlaneIntersectionNormals(common, {1.0, 2.0f, 3.0f}, {3.0f, 1.0f, 2.0f}, {3.0f, 2.0f, 1.0f});
+    Vertex common{1.0, 2.0, 3.0};
+    auto result = getPlaneIntersectionNormals(common, {1.0, 2.0, 3.0}, {3.0, 1.0, 2.0}, {3.0, 2.0, 1.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{3.0f, -2.0f, 1.0f};
-    auto result = getPlaneIntersectionNormals(common, {1.0, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f});
+    Vertex common{3.0, -2.0, 1.0};
+    auto result = getPlaneIntersectionNormals(common, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{3.0f, -2.0f, -1.0f};
-    auto result = getPlaneIntersectionNormals(common, {1.0, -2.0f, 3.0f}, {-1.0f, 2.0f, 3.0f}, {1.0f, 2.0f, -3.0f});
+    Vertex common{3.0, -2.0, -1.0};
+    auto result = getPlaneIntersectionNormals(common, {1.0, -2.0, 3.0}, {-1.0, 2.0, 3.0}, {1.0, 2.0, -3.0});
     EXPECT_TRUE(eq(common, result));
   }
 }
 
 Vertex getPlaneIntersectionProportionPoints(Vertex aCommon,
-                                                  float aProportion1, Vertex aOne1,
-                                                  float aProportion2, Vertex aOne2,
-                                                  float aProportion3, Vertex aOne3) {
-  Plane plane1 = Plane::createFrom1proportion2points(aProportion1, aOne1, aOne1 + 1.0f / aProportion1 * (aCommon - aOne1));
-  Plane plane2 = Plane::createFrom1proportion2points(aProportion2, aOne2, aOne2 + 1.0f / aProportion2 * (aCommon - aOne2));
-  Plane plane3 = Plane::createFrom1proportion2points(aProportion3, aOne3, aOne3 + 1.0f / aProportion3 * (aCommon - aOne3));
+                                                  double aProportion1, Vertex aOne1,
+                                                  double aProportion2, Vertex aOne2,
+                                                  double aProportion3, Vertex aOne3) {
+  Plane plane1 = Plane::createFrom1proportion2points(aProportion1, aOne1, aOne1 + 1.0 / aProportion1 * (aCommon - aOne1));
+  Plane plane2 = Plane::createFrom1proportion2points(aProportion2, aOne2, aOne2 + 1.0 / aProportion2 * (aCommon - aOne2));
+  Plane plane3 = Plane::createFrom1proportion2points(aProportion3, aOne3, aOne3 + 1.0 / aProportion3 * (aCommon - aOne3));
   return Plane::intersect(plane1, plane2, plane3);
 }
 
 TEST(planeIntersection, Proportion) {
   {
-    Vertex common{0.0f, 0.0f, 0.0f};
-    auto result = getPlaneIntersectionProportionPoints(common, 0.5f, {1.0f, 0.0f, 0.0f}, 0.5f, {0.0f, 1.0f, 0.0f}, 0.5f, {0.0f, 0.0f, 1.0f});
+    Vertex common{0.0, 0.0, 0.0};
+    auto result = getPlaneIntersectionProportionPoints(common, 0.5, {1.0, 0.0, 0.0}, 0.5, {0.0, 1.0, 0.0}, 0.5, {0.0, 0.0, 1.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{0.0f, 0.0f, 0.0f};
-    auto result = getPlaneIntersectionProportionPoints(common, 0.5f, {1.0f, 0.0f, 0.0f}, 0.2f, {0.0f, 1.0f, 0.0f}, 0.1f, {0.0f, 0.0f, 1.0f});
+    Vertex common{0.0, 0.0, 0.0};
+    auto result = getPlaneIntersectionProportionPoints(common, 0.5, {1.0, 0.0, 0.0}, 0.2, {0.0, 1.0, 0.0}, 0.1, {0.0, 0.0, 1.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{-1.0f, 2.0f, 3.0f};
-    auto result = getPlaneIntersectionProportionPoints(common, 0.1f, {10.0f, 10.0f, 0.0f}, 0.2f, {0.0f, 10.0f, 10.0f}, 0.3f, {10.0f, 0.0f, 10.0f});
+    Vertex common{-1.0, 2.0, 3.0};
+    auto result = getPlaneIntersectionProportionPoints(common, 0.1, {10.0, 10.0, 0.0}, 0.2, {0.0, 10.0, 10.0}, 0.3, {10.0, 0.0, 10.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{-1.0f, 2.0f, 3.0f};
-    auto result = getPlaneIntersectionProportionPoints(common, 0.1f, {-10.0f, 10.0f, 0.0f}, 0.2f, {0.0f, -10.0f, 10.0f}, 0.3f, {10.0f, 0.0f, 10.0f});
+    Vertex common{-1.0, 2.0, 3.0};
+    auto result = getPlaneIntersectionProportionPoints(common, 0.1, {-10.0, 10.0, 0.0}, 0.2, {0.0, -10.0, 10.0}, 0.3, {10.0, 0.0, 10.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{-1.0f, 2.0f, 3.0f};
-    auto result = getPlaneIntersectionProportionPoints(common, 0.1f, {10.0f, 10.0f, 0.0f}, 0.2f, {0.0f, -10.0f, 10.0f}, 0.3f, {-10.0f, 0.0f, 10.0f});
+    Vertex common{-1.0, 2.0, 3.0};
+    auto result = getPlaneIntersectionProportionPoints(common, 0.1, {10.0, 10.0, 0.0}, 0.2, {0.0, -10.0, 10.0}, 0.3, {-10.0, 0.0, 10.0});
     EXPECT_TRUE(eq(common, result));
   }
 }
@@ -152,23 +152,23 @@ Vertex getPlaneIntersectionVertices(Vertex aCommon,
 
 TEST(planeIntersection, Vertices) {
   {
-    Vertex common{1.0f, 2.0f, 3.0f};
-    auto result = getPlaneIntersectionVertices(common, {10.0f, 0.0f, 0.0f}, {0.0f, 10.0f, 0.0f}, {0.0f, 0.0f, 10.0f});
+    Vertex common{1.0, 2.0, 3.0};
+    auto result = getPlaneIntersectionVertices(common, {10.0, 0.0, 0.0}, {0.0, 10.0, 0.0}, {0.0, 0.0, 10.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{1.0f, 2.0f, 3.0f};
-    auto result = getPlaneIntersectionVertices(common, {-10.0f, 0.0f, 0.0f}, {0.0f, 10.0f, 0.0f}, {0.0f, 0.0f, 10.0f});
+    Vertex common{1.0, 2.0, 3.0};
+    auto result = getPlaneIntersectionVertices(common, {-10.0, 0.0, 0.0}, {0.0, 10.0, 0.0}, {0.0, 0.0, 10.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{1.0f, 2.0f, 3.0f};
-    auto result = getPlaneIntersectionVertices(common, {-10.0f, 0.0f, 0.0f}, {0.0f, -10.0f, 0.0f}, {0.0f, 0.0f, 10.0f});
+    Vertex common{1.0, 2.0, 3.0};
+    auto result = getPlaneIntersectionVertices(common, {-10.0, 0.0, 0.0}, {0.0, -10.0, 0.0}, {0.0, 0.0, 10.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{1.0f, 2.0f, 3.0f};
-    auto result = getPlaneIntersectionVertices(common, {-10.0f, 0.0f, 0.0f}, {0.0f, -10.0f, 0.0f}, {0.0f, 0.0f, -10.0f});
+    Vertex common{1.0, 2.0, 3.0};
+    auto result = getPlaneIntersectionVertices(common, {-10.0, 0.0, 0.0}, {0.0, -10.0, 0.0}, {0.0, 0.0, -10.0});
     EXPECT_TRUE(eq(common, result));
   }
 }
@@ -185,24 +185,24 @@ Vertex getPlaneIntersection1vector2points(Vertex aCommon,
 
 TEST(planeIntersection, VectorPoints) {
   {
-    Vertex common{1.0f, 2.0f, -3.0f};
-    auto result = getPlaneIntersection1vector2points(common, {10.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f},
-                                                             {0.0f, 10.0f, 0.0f}, {0.0f, 0.0f, 1.0f},
-                                                             {0.0f, 0.0f, 10.0f}, {1.0f, 0.0f, 0.0f});
+    Vertex common{1.0, 2.0, -3.0};
+    auto result = getPlaneIntersection1vector2points(common, {10.0, 0.0, 0.0}, {0.0, 1.0, 0.0},
+                                                             {0.0, 10.0, 0.0}, {0.0, 0.0, 1.0},
+                                                             {0.0, 0.0, 10.0}, {1.0, 0.0, 0.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{1.0f, 2.0f, -3.0f};
-    auto result = getPlaneIntersection1vector2points(common, {10.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 1.0f},
-                                                             {0.0f, 10.0f, 0.0f}, {1.0f, 0.0f, -1.0f},
-                                                             {0.0f, 0.0f, 10.0f}, {1.0f, 1.0f, 0.0f});
+    Vertex common{1.0, 2.0, -3.0};
+    auto result = getPlaneIntersection1vector2points(common, {10.0, 0.0, 0.0}, {0.0, 1.0, 1.0},
+                                                             {0.0, 10.0, 0.0}, {1.0, 0.0, -1.0},
+                                                             {0.0, 0.0, 10.0}, {1.0, 1.0, 0.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{1.0f, 2.0f, -3.0f};
-    auto result = getPlaneIntersection1vector2points(common, {10.0f, 0.0f, 0.0f}, {-4.0f, 1.0f, 1.0f},
-                                                             {0.0f, 10.0f, 0.0f}, {1.0f, -4.0f, -1.0f},
-                                                             {0.0f, 0.0f, 10.0f}, {1.0f, 1.0f, -4.0f});
+    Vertex common{1.0, 2.0, -3.0};
+    auto result = getPlaneIntersection1vector2points(common, {10.0, 0.0, 0.0}, {-4.0, 1.0, 1.0},
+                                                             {0.0, 10.0, 0.0}, {1.0, -4.0, -1.0},
+                                                             {0.0, 0.0, 10.0}, {1.0, 1.0, -4.0});
     EXPECT_TRUE(eq(common, result));
   }
 }
@@ -219,79 +219,79 @@ Vertex getPlaneIntersection2vectors1point(Vertex aCommon,
 
 TEST(planeIntersection, VectorsPoint) {
   {
-    Vertex common{1.0f, 2.0f, -3.0f};
-    auto result = getPlaneIntersection1vector2points(common, {10.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f},
-                                                             {0.0f, 10.0f, 0.0f}, {0.0f, 0.0f, 1.0f},
-                                                             {0.0f, 0.0f, 10.0f}, {1.0f, 0.0f, 0.0f});
+    Vertex common{1.0, 2.0, -3.0};
+    auto result = getPlaneIntersection1vector2points(common, {10.0, 0.0, 0.0}, {0.0, 1.0, 0.0},
+                                                             {0.0, 10.0, 0.0}, {0.0, 0.0, 1.0},
+                                                             {0.0, 0.0, 10.0}, {1.0, 0.0, 0.0});
     EXPECT_TRUE(eq(common, result));
   }
   {
-    Vertex common{1.0f, 2.0f, -3.0f};
-    auto result = getPlaneIntersection1vector2points(common, {10.0f, 1.0f, 0.0f}, {1.0f, 10.0f, 0.0f},
-                                                             {0.0f, 10.0f, 1.0f}, {0.0f, 1.0f, 10.0f},
-                                                             {1.0f, 0.0f, 10.0f}, {10.0f, 0.0f, 1.0f});
+    Vertex common{1.0, 2.0, -3.0};
+    auto result = getPlaneIntersection1vector2points(common, {10.0, 1.0, 0.0}, {1.0, 10.0, 0.0},
+                                                             {0.0, 10.0, 1.0}, {0.0, 1.0, 10.0},
+                                                             {1.0, 0.0, 10.0}, {10.0, 0.0, 1.0});
     EXPECT_TRUE(eq(common, result));
   }
 }
 
 TEST(planeIntersection, Ray) {
   {
-    Ray ray(Vertex{1.0f, 2.0f, -3.0f}, Vector{1.0f, 1.0f, 1.0f});
-    Plane plane = Plane::createFrom3points(Vertex{10.0f, 1.0f, 2.0f}, Vertex{11.0f, 11.1f, 2.0f}, Vertex{12.0f, 1.1f, 4.4f});
+    Ray ray(Vertex{1.0, 2.0, -3.0}, Vector{1.0, 1.0, 1.0});
+    Plane plane = Plane::createFrom3points(Vertex{10.0, 1.0, 2.0}, Vertex{11.0, 11.1, 2.0}, Vertex{12.0, 1.1, 4.4});
     auto result = plane.intersect(ray);
     EXPECT_TRUE(result.mValid);
   }
   {
-    Ray ray(Vertex{1.0f, 2.0f, -3.0f}, Vector{-1.0f, 2.0f, 3.0f});
-    Plane plane = Plane::createFrom3points(Vertex{10.0f, 1.0f, 2.0f}, Vertex{11.0f, 11.1f, 2.0f}, Vertex{12.0f, 1.1f, 4.4f});
+    Ray ray(Vertex{1.0, 2.0, -3.0}, Vector{-1.0, 2.0, 3.0});
+    Plane plane = Plane::createFrom3points(Vertex{10.0, 1.0, 2.0}, Vertex{11.0, 11.1, 2.0}, Vertex{12.0, 1.1, 4.4});
     auto result = plane.intersect(ray);
     EXPECT_TRUE(result.mValid);
-    EXPECT_LT(result.mDistance, 0.0f);
+    EXPECT_LT(result.mDistance, 0.0);
   }
   {
-    Ray ray(Vertex{1.0f, 2.0f, -3.0f}, Vector{0.0f, 2.0f, 0.0f});
-    Plane plane = Plane::createFrom3points(Vertex{10.0f, 1.0f, 2.0f}, Vertex{10.0f, 11.1f, 2.0f}, Vertex{10.0f, 1.1f, 4.4f});
+    Ray ray(Vertex{1.0, 2.0, -3.0}, Vector{0.0, 2.0, 0.0});
+    Plane plane = Plane::createFrom3points(Vertex{10.0, 1.0, 2.0}, Vertex{10.0, 11.1, 2.0}, Vertex{10.0, 1.1, 4.4});
     auto result = plane.intersect(ray);
     EXPECT_FALSE(result.mValid);
   }
   {
-    Ray ray(Vertex{1.0f, 2.0f, -3.0f}, Vector{0.0f, 2.0f, 0.0f});
-    Plane plane = Plane::createFrom3points(Vertex{10.0f, 10.0f, 2.0f}, Vertex{0.0f, 10.0f, 2.0f}, Vertex{10.0f, 10.0f, 10.4f});
+    Ray ray(Vertex{1.0, 2.0, -3.0}, Vector{0.0, 2.0, 0.0});
+    Plane plane = Plane::createFrom3points(Vertex{10.0, 10.0, 2.0}, Vertex{0.0, 10.0, 2.0}, Vertex{10.0, 10.0, 10.4});
     auto result = plane.intersect(ray);
     EXPECT_TRUE(result.mValid);
-    EXPECT_LT((result.mPoint - Vertex{1.0f, 10.0f, -3.0f}).norm(), 0.00001f);
-    EXPECT_GT(::abs(result.mCosIncidence), 0.9999f);
+    EXPECT_LT((result.mPoint - Vertex{1.0, 10.0, -3.0}).norm(), 0.00001);
+    EXPECT_GT(::abs(result.mCosIncidence), 0.9999);
   }
 }
 
 TEST(planeProjection, Point) {
   {
-    Vertex point{0.0f, 0.0f, 0.0f};
-    Plane plane = Plane::createFrom3points({2.0f, 0.0f, 0.0f}, {0.0f, 2.0f, 0.0f}, {0.0f, 0.0f, 2.0f});
+    Vertex point{0.0, 0.0, 0.0};
+    Plane plane = Plane::createFrom3points({2.0, 0.0, 0.0}, {0.0, 2.0, 0.0}, {0.0, 0.0, 2.0});
     auto projected = plane.project(point);
-    EXPECT_TRUE(eq(projected, Vertex(0.666666f, 0.666666f, 0.666666f)));
+    EXPECT_TRUE(eq(projected, Vertex(0.666666, 0.666666, 0.666666)));
   }
   {
-    Vertex point{0.0f, 0.0f, 0.0f};
-    Plane plane = Plane::createFrom3points({2.0f, 0.0f, 0.0f}, {2.0f, 1.0f, 0.0f}, {2.0f, 0.0f, 1.0f});
+    Vertex point{0.0, 0.0, 0.0};
+    Plane plane = Plane::createFrom3points({2.0, 0.0, 0.0}, {2.0, 1.0, 0.0}, {2.0, 0.0, 1.0});
     auto projected = plane.project(point);
-    EXPECT_TRUE(eq(projected, Vertex(2.0f, 0.0f, 0.0f)));
+    EXPECT_TRUE(eq(projected, Vertex(2.0, 0.0, 0.0)));
   }
   {
-    Vertex point{1.0f, 2.0f, 3.0f};
-    Plane plane = Plane::createFrom3points({3.0f, 2.0f, 3.0f}, {1.0f, 4.0f, 3.0f}, {1.0f, 2.0f, 5.0f});
+    Vertex point{1.0, 2.0, 3.0};
+    Plane plane = Plane::createFrom3points({3.0, 2.0, 3.0}, {1.0, 4.0, 3.0}, {1.0, 2.0, 5.0});
     auto projected = plane.project(point);
-    EXPECT_TRUE(eq(projected, Vertex(1.666666f, 2.666666f, 3.666666f)));
+    EXPECT_TRUE(eq(projected, Vertex(1.666666, 2.666666, 3.666666)));
   }
   {
-    Vertex point{-1.0f, -2.0f, 3.0f};
-    Plane plane = Plane::createFrom3points({1.0f, -2.0f, 3.0f}, {1.0f, -3.0f, 3.0f}, {1.0f, -2.0f, 4.0f});
+    Vertex point{-1.0, -2.0, 3.0};
+    Plane plane = Plane::createFrom3points({1.0, -2.0, 3.0}, {1.0, -3.0, 3.0}, {1.0, -2.0, 4.0});
     auto projected = plane.project(point);
-    EXPECT_TRUE(eq(projected, Vertex(1.0f, -2.0f, 3.0f)));
+    EXPECT_TRUE(eq(projected, Vertex(1.0, -2.0, 3.0)));
   }
   {
-    Vertex point{1.666666f, 2.666666f, 3.666666f};
-    Plane plane = Plane::createFrom3points({3.0f, 2.0f, 3.0f}, {1.0f, 4.0f, 3.0f}, {1.0f, 2.0f, 5.0f});
+    Vertex point{1.666666, 2.666666, 3.666666};
+    Plane plane = Plane::createFrom3points({3.0, 2.0, 3.0}, {1.0, 4.0, 3.0}, {1.0, 2.0, 5.0});
     auto projected = plane.project(point);
     EXPECT_TRUE(eq(projected, point));
   }
@@ -299,54 +299,54 @@ TEST(planeProjection, Point) {
 
 TEST(planeDistance, Point) {
   {
-    Vertex point{0.0f, 0.0f, 0.0f};
-    Plane plane = Plane::createFrom3points({2.0f, 0.0f, 0.0f}, {0.0f, 2.0f, 0.0f}, {0.0f, 0.0f, 2.0f});
+    Vertex point{0.0, 0.0, 0.0};
+    Plane plane = Plane::createFrom3points({2.0, 0.0, 0.0}, {0.0, 2.0, 0.0}, {0.0, 0.0, 2.0});
     auto dist = ::abs(plane.distance(point));
-    EXPECT_TRUE(eq(dist, 1.15468f));
+    EXPECT_TRUE(eq(dist, 1.15468));
   }
   {
-    Vertex point{0.0f, 0.0f, 0.0f};
-    Plane plane = Plane::createFrom3points({2.0f, 0.0f, 0.0f}, {2.0f, 1.0f, 0.0f}, {2.0f, 0.0f, 1.0f});
+    Vertex point{0.0, 0.0, 0.0};
+    Plane plane = Plane::createFrom3points({2.0, 0.0, 0.0}, {2.0, 1.0, 0.0}, {2.0, 0.0, 1.0});
     auto dist = ::abs(plane.distance(point));
-    EXPECT_TRUE(eq(dist, 2.0f));
+    EXPECT_TRUE(eq(dist, 2.0));
   }
   {
-    Vertex point{1.0f, 2.0f, 3.0f};
-    Plane plane = Plane::createFrom3points({3.0f, 2.0f, 3.0f}, {1.0f, 4.0f, 3.0f}, {1.0f, 2.0f, 5.0f});
+    Vertex point{1.0, 2.0, 3.0};
+    Plane plane = Plane::createFrom3points({3.0, 2.0, 3.0}, {1.0, 4.0, 3.0}, {1.0, 2.0, 5.0});
     auto dist = ::abs(plane.distance(point));
-    EXPECT_TRUE(eq(dist, 1.15468f));
+    EXPECT_TRUE(eq(dist, 1.15468));
   }
   {
-    Vertex point{-1.0f, -2.0f, 3.0f};
-    Plane plane = Plane::createFrom3points({1.0f, -2.0f, 3.0f}, {1.0f, -3.0f, 3.0f}, {1.0f, -2.0f, 4.0f});
+    Vertex point{-1.0, -2.0, 3.0};
+    Plane plane = Plane::createFrom3points({1.0, -2.0, 3.0}, {1.0, -3.0, 3.0}, {1.0, -2.0, 4.0});
     auto dist = ::abs(plane.distance(point));
-    EXPECT_TRUE(eq(dist, 2.0f));
+    EXPECT_TRUE(eq(dist, 2.0));
   }
   {
-    Vertex point{1.666666f, 2.666666f, 3.666666f};
-    Plane plane = Plane::createFrom3points({3.0f, 2.0f, 3.0f}, {1.0f, 4.0f, 3.0f}, {1.0f, 2.0f, 5.0f});
+    Vertex point{1.666666, 2.666666, 3.666666};
+    Plane plane = Plane::createFrom3points({3.0, 2.0, 3.0}, {1.0, 4.0, 3.0}, {1.0, 2.0, 5.0});
     auto dist = ::abs(plane.distance(point));
-    EXPECT_TRUE(eq(dist, 0.0f));
+    EXPECT_TRUE(eq(dist, 0.0));
   }
 }
 
 TEST(toWhichSide, Points) {
-  Vertex triangle0{3.0f, 2.0f, 5.0f};
-  Vertex triangle1{1.0f, 4.0f, 5.0f};
-  Vertex triangle2{6.0f, 5.0f, 5.0f};
-  Vertex start = (triangle0 + triangle1 + triangle2) / 3.0f;
+  Vertex triangle0{3.0, 2.0, 5.0};
+  Vertex triangle1{1.0, 4.0, 5.0};
+  Vertex triangle2{6.0, 5.0, 5.0};
+  Vertex start = (triangle0 + triangle1 + triangle2) / 3.0;
   {
-    Vertex end = start + Vector{1.0f, 0.0f, 0.0f};
+    Vertex end = start + Vector{1.0, 0.0, 0.0};
     auto converter = util::getBarycentricInverse(triangle0, triangle1, triangle2);
     EXPECT_EQ(util::toWhichSide(converter * start, converter * end), 2u);
   }
   {
-    Vertex end = start + Vector{0.0f, 1.0f, 0.0f};
+    Vertex end = start + Vector{0.0, 1.0, 0.0};
     auto converter = util::getBarycentricInverse(triangle0, triangle1, triangle2);
     EXPECT_EQ(util::toWhichSide(converter * start, converter * end), 1u);
   }
   {
-    Vertex end = start + Vector{-1.0f, -1.0f, 0.0f};
+    Vertex end = start + Vector{-1.0, -1.0, 0.0};
     auto converter = util::getBarycentricInverse(triangle0, triangle1, triangle2);
     EXPECT_EQ(util::toWhichSide(converter * start, converter * end), 0u);
   }

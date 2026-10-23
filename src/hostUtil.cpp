@@ -1,14 +1,14 @@
 #include "hostUtil.h"
 
 UniformHemisphere::UniformHemisphere(uint32_t const aBelts)
-  : cmBeltWidth(cgPi / 2.0f / aBelts)
-  , mUniform1(0.0f, 1.0f)
-  , mUniform2pi(0.0f, cgPi * 2.0f) {
+  : cmBeltWidth(cgPi / 2.0 / aBelts)
+  , mUniform1(0.0, 1.0)
+  , mUniform2pi(0.0, cgPi * 2.0) {
   mBelts.reserve(aBelts);
   mPatchCount= 0u;
   for(uint32_t i = 0u; i < aBelts; ++i) {
-    uint32_t now = ::ceil(4.0f * aBelts * ::sin((2.0f * i + 1.0f) / (4.0f * aBelts) * cgPi));
-    mBelts.emplace_back(cgPi * 2.0f / now, mPatchCount);
+    uint32_t now = ::ceil(4.0 * aBelts * ::sin((2.0 * i + 1.0) / (4.0 * aBelts) * cgPi));
+    mBelts.emplace_back(cgPi * 2.0 / now, mPatchCount);
     mPatchCount += now;
   }
 }
@@ -16,8 +16,8 @@ UniformHemisphere::UniformHemisphere(uint32_t const aBelts)
 std::pair<Vector, uint32_t> UniformHemisphere::getRandom() {
   Vector direction;
   uint32_t index;
-  float incidence = ::acos(mUniform1(mRandomGenerator));
-  float beltRadius = ::sin(incidence);
+  double incidence = ::acos(mUniform1(mRandomGenerator));
+  double beltRadius = ::sin(incidence);
   auto turn = mUniform2pi(mRandomGenerator);
   direction(0) = ::cos(incidence);
   direction(1) = beltRadius * ::cos(turn);

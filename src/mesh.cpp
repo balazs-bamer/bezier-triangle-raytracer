@@ -1,8 +1,8 @@
 #include "mesh.h"
 
 
-float Mesh::getSmallestSide() const {
-  float smallestSide = std::numeric_limits<float>::max();
+double Mesh::getSmallestSide() const {
+  double smallestSide = std::numeric_limits<double>::max();
   for(auto &triangle : mMesh) {
     for(uint32_t i = 0u; i < 3u; ++i) {
       smallestSide = std::min(smallestSide, (triangle[i] - triangle[(i + 1u) % 3u]).norm());
@@ -21,9 +21,9 @@ void Mesh::projectVertices(ProjectedIndices &aCurrentProjectedSorted, int32_t co
   }
 }
 
-float Mesh::makeProximityIntervals(ProjectedIndices const &aCurrentProjectedSorted, Intervals &aCurrentIntervals, float const aEpsilon) const {
+double Mesh::makeProximityIntervals(ProjectedIndices const &aCurrentProjectedSorted, Intervals &aCurrentIntervals, double const aEpsilon) const {
   bool was = false;
-  float startValue;
+  double startValue;
   uint32_t max = 0u, counter;
   Iterator startIterator = aCurrentProjectedSorted.cend();;
   for(Iterator i = aCurrentProjectedSorted.cbegin(); i != aCurrentProjectedSorted.cend(); ++i) {
@@ -53,7 +53,7 @@ float Mesh::makeProximityIntervals(ProjectedIndices const &aCurrentProjectedSort
   return max;
 }
 
-void Mesh::standardizeInIntervals(Intervals const &aIntervals, float const aEpsilonSquared) {
+void Mesh::standardizeInIntervals(Intervals const &aIntervals, double const aEpsilonSquared) {
   for(auto const& interval : aIntervals) {                               // We need to check pairwise proximity only inside each interval.
     for(auto i = interval.first; i != interval.second; ++i) {
       auto &v1 = mMesh[i->second.first][i->second.second];
@@ -152,8 +152,8 @@ std::tuple<typename Mesh::Edge2face, typename Mesh::Face2vertex, typename Mesh::
   return std::make_tuple(edge2face, face2vertex, was);
 }
 
-std::pair<float, std::unordered_set<uint32_t>> Mesh::getSmallestXstuff(Face2vertex const &aFace2vertex, Vertex2index const &aVertex2index) const {
-  float smallestX = std::numeric_limits<float>::max();
+std::pair<double, std::unordered_set<uint32_t>> Mesh::getSmallestXstuff(Face2vertex const &aFace2vertex, Vertex2index const &aVertex2index) const {
+  double smallestX = std::numeric_limits<double>::max();
   uint32_t smallestXverticeIndex;
   for(uint32_t indexFace = 0u; indexFace < mMesh.size(); ++indexFace) {
     auto const &face = mMesh[indexFace];
@@ -222,7 +222,7 @@ void Mesh::createFace2neighbour(Edge2face const &aEdge2face, Face2vertex const &
 }
 
 uint32_t Mesh::getInitialFaceIndex(std::unordered_set<uint32_t> const &aFacesAtSmallestX, Vertex const &aDesiredVector) const {
-  float maxAbsoluteDotProduct = -std::numeric_limits<float>::max();
+  double maxAbsoluteDotProduct = -std::numeric_limits<double>::max();
   uint32_t initialFaceIndex;                                          // First determine the initial face for which we want (f[1]-f[0])x(f[2]-f[0]) point outwards.
   for(auto const indexFace : aFacesAtSmallestX) {
     auto const &face = mMesh[indexFace];
@@ -240,7 +240,7 @@ uint32_t Mesh::getInitialFaceIndex(std::unordered_set<uint32_t> const &aFacesAtS
 
 void Mesh::normalize(Triangle &aFace, Vertex const &aDesiredVector) {
   auto normal = util::getNormal(aFace);
-  if(aDesiredVector.dot(normal) < 0.0f) {
+  if(aDesiredVector.dot(normal) < 0.0) {
     std::swap(aFace[0u], aFace[1u]);
   }
   else { // Nothing to do
@@ -263,7 +263,7 @@ void Mesh::normalize(Triangle const &aFaceKnown, Triangle &aFaceUnknown) {  // C
   auto normalUnknown = util::getNormal(aFaceUnknown);
   auto knownDotUnknown = normalKnown.dot(normalUnknown);
   if(std::abs(knownDotUnknown / (normalKnown.norm() * normalUnknown.norm())) < csStandardizeNormalsEpsilon) {
-    auto newIndependentUnknown = aFaceUnknown[independentIndexUnknown] + csStandardizeNormalsIndependentMoveFactor * (aFaceKnown[independentIndexKnown] - (aFaceKnown[commonIndex1known] + aFaceKnown[commonIndex2known]) / 2.0f);
+    auto newIndependentUnknown = aFaceUnknown[independentIndexUnknown] + csStandardizeNormalsIndependentMoveFactor * (aFaceKnown[independentIndexKnown] - (aFaceKnown[commonIndex1known] + aFaceKnown[commonIndex2known]) / 2.0);
     auto newFaceUnknown = aFaceUnknown;
     newFaceUnknown[independentIndexUnknown] = newIndependentUnknown;
 
@@ -274,7 +274,7 @@ void Mesh::normalize(Triangle const &aFaceKnown, Triangle &aFaceUnknown) {  // C
   }
   else { // Nothing to do
   }
-  if(dotFaceAltitudes * knownDotUnknown > 0.0f) {
+  if(dotFaceAltitudes * knownDotUnknown > 0.0) {
     std::swap(aFaceUnknown[commonIndex1unknown], aFaceUnknown[commonIndex2unknown]);
   }
   else { // Nothing to do
@@ -298,7 +298,7 @@ void Mesh::calculateNormalAverages4vertices() {
       uint32_t const whichVertex = std::find(triangle.cbegin(), triangle.cend(), vertex) - triangle.cbegin();
       Vector sideA = triangle[(whichVertex + 1u) % 3u] - triangle[whichVertex];         // We use angle here
       Vector sideB = triangle[(whichVertex + 2u) % 3u] - triangle[whichVertex];         // Because small triangles are equally important
-      float cosAngle = sideA.dot(sideB) / (sideA.norm() * sideB.norm());                // as large ones since they probably help the surface bend.
+      double cosAngle = sideA.dot(sideB) / (sideA.norm() * sideB.norm());                // as large ones since they probably help the surface bend.
       sum += util::getNormal(mMesh[inRange->second]).normalized() * acos(cosAngle);
     }
     sum.normalize();
@@ -315,7 +315,7 @@ void Mesh::standardizeNormals() {
     createFace2neighbour(edge2face, face2vertex);
 
     Vertex desiredVector;                                               // A known unit vector pointing outwards for a definite face.
-    desiredVector << -1.0f, 0.0f, 0.0f;
+    desiredVector << -1.0, 0.0, 0.0;
     uint32_t initialFaceIndex = getInitialFaceIndex(facesAtSmallestX, desiredVector);
 
     struct KnownUnknownFacePair {
@@ -372,10 +372,10 @@ void Mesh::divideTriangle(TheMesh &result, Triangle const &aTriangle, int32_t co
   util::divide(aTriangle, aDivisor, [&result](Triangle && aNew){ result.push_back(aNew); } );
 }
 
-void Mesh::splitTriangles(float const aMaxTriangleSide) {
+void Mesh::splitTriangles(double const aMaxTriangleSide) {
   TheMesh result;
   for(auto const &triangle : mMesh) {
-    float maxSide = (triangle[0] - triangle[1]).norm();
+    double maxSide = (triangle[0] - triangle[1]).norm();
     maxSide = std::max(maxSide, (triangle[0] - triangle[2]).norm());
     maxSide = std::max(maxSide, (triangle[1] - triangle[2]).norm());
     int32_t divisor = static_cast<int32_t>(std::ceil(maxSide / aMaxTriangleSide));
@@ -399,11 +399,11 @@ void Mesh::splitTriangles(int32_t const aDivisor) {
 void Mesh::readMesh(std::string const &aFilename) {
   mMesh.clear();
   mFace2neighbours.clear();
-  stl_reader::StlMesh<float, int32_t> mesh(aFilename);
+  stl_reader::StlMesh<double, int32_t> mesh(aFilename);
   for(int32_t indexTriangle = 0; indexTriangle < mesh.num_tris(); ++indexTriangle) {
     Triangle triangle;
     for(int32_t indexCorner = 0; indexCorner < 3; ++indexCorner) {
-      float const * const coords = mesh.tri_corner_coords(indexTriangle, indexCorner);
+      double const * const coords = mesh.tri_corner_coords(indexTriangle, indexCorner);
       Vertex in;
       for(int32_t i = 0; i < 3; ++i) {
         in(i) = coords[i];
@@ -431,27 +431,27 @@ void Mesh::writeMesh(std::string const& aFilename) const {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Mesh::makeSolidOfRevolution(int32_t const aSectors, int32_t const aBelts, std::function<float(float)> aEnvelope, Vector const &aSize) {
+void Mesh::makeSolidOfRevolution(int32_t const aSectors, int32_t const aBelts, std::function<double(double)> aEnvelope, Vector const &aSize) {
   mMesh.clear();
   mMesh.reserve(static_cast<uint32_t>(2 * aSectors * aBelts));
   mFace2neighbours.clear();
-  float sectorAngleHalf = cgPi / aSectors;
-  float sectorAngleFull = sectorAngleHalf * 2.0f;
-  float beltAngle       = cgPi / (aBelts + 1.0f);
-  float bias = 0.0f;
-  float beltAngleUp = 0.0f;
-  float beltAngleMiddle = beltAngle;
-  float beltAngleDown = 2.0f * beltAngle;
-  float beltRadiusUp = 0.0f;
-  float beltRadiusMiddle = aSize(0) * aEnvelope(std::cos(beltAngleMiddle));
-  float beltRadiusDown = aSize(0) * aEnvelope(std::cos(beltAngleDown));
-  float beltZup = aSize(2);
-  float beltZmiddle = aSize(2) * std::cos(beltAngleMiddle);
-  float beltZdown = aSize(2) * std::cos(beltAngleDown);
+  double sectorAngleHalf = cgPi / aSectors;
+  double sectorAngleFull = sectorAngleHalf * 2.0;
+  double beltAngle       = cgPi / (aBelts + 1.0);
+  double bias = 0.0;
+  double beltAngleUp = 0.0;
+  double beltAngleMiddle = beltAngle;
+  double beltAngleDown = 2.0 * beltAngle;
+  double beltRadiusUp = 0.0;
+  double beltRadiusMiddle = aSize(0) * aEnvelope(std::cos(beltAngleMiddle));
+  double beltRadiusDown = aSize(0) * aEnvelope(std::cos(beltAngleDown));
+  double beltZup = aSize(2);
+  double beltZmiddle = aSize(2) * std::cos(beltAngleMiddle);
+  double beltZdown = aSize(2) * std::cos(beltAngleDown);
   for(int32_t belt = 0; belt < aBelts; ++belt) {
-    float sectorAngleUpDown = bias + sectorAngleHalf;
-    float sectorAngleMiddle1 = bias + 0.0f;
-    float sectorAngleMiddle2 = bias + sectorAngleFull;
+    double sectorAngleUpDown = bias + sectorAngleHalf;
+    double sectorAngleMiddle1 = bias + 0.0;
+    double sectorAngleMiddle2 = bias + sectorAngleFull;
     for(int32_t sector = 0; sector < aSectors; ++sector) {
       Vertex corner1(beltRadiusUp * std::sin(sectorAngleUpDown), aSize(1) * beltRadiusUp * std::cos(sectorAngleUpDown), beltZup);
       Vertex corner2(beltRadiusMiddle * std::sin(sectorAngleMiddle1), aSize(1) * beltRadiusMiddle * std::cos(sectorAngleMiddle1), beltZmiddle);

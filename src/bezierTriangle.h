@@ -50,16 +50,16 @@ private:
   static constexpr uint32_t csControlIndex201 = csControlIndexOnSideFromOriginalCentroid1;
   static constexpr uint32_t csControlIndex111 = csControlIndexMiddle;
 
-  static constexpr float    csProportionControlOnOriginalSide           = 0.291f;
-  static constexpr float    csProportionControlOnOriginalVertexCentroid = 0.304f;
-  static constexpr float    csProportionControlOnOriginalMedian         = 0.2f;
-  static constexpr float    csHeightSafetyFactor                        = 1.33333333f;
-  static constexpr float    csOneThird                                  = 1.0 / 3.0;
+  static constexpr double    csProportionControlOnOriginalSide           = 0.291;
+  static constexpr double    csProportionControlOnOriginalVertexCentroid = 0.304;
+  static constexpr double    csProportionControlOnOriginalMedian         = 0.2;
+  static constexpr double    csHeightSafetyFactor                        = 1.33333333;
+  static constexpr double    csOneThird                                  = 1.0 / 3.0;
   static constexpr uint32_t csRootSearchIterations                      = 4u;
   static constexpr int32_t  csHeightSampleDivisor                       = 5;
-  static constexpr float    csMaxIntersectionDistanceFromRay            = 0.01f;
-  static constexpr float    csMinimalRayDistance                        = 1.0f;
-  static constexpr float    csIntersectionEstimationEpsilon             = 0.000001f;
+  static constexpr double    csMaxIntersectionDistanceFromRay            = 0.01;
+  static constexpr double    csMinimalRayDistance                        = 1.0;
+  static constexpr double    csIntersectionEstimationEpsilon             = 0.000001;
 
   Plane                    mUnderlyingPlane;         // Plane span by mControlPoints[0-2], normal is normalized and points outwards.
   std::array<Plane, 3u>    mNeighbourDividerPlanes;  // For indices 1 and 2, these are about the plane going through each edge in direction the average of the adjacent side normals.
@@ -74,8 +74,8 @@ private:
   // Perhaps not needed, because the iterative method to find ray and Bezier surface intersection takes long. std::array<Vertex, 12u> mDerivativeControlPoints; // T most probably more than 2*6 for each partial derivative.
   Matrix                   mBarycentricInverse;      // T = (v1 v2 v3), b = barycentric coefficient column, v = point on plane, v=Tb, b = mBI * v
                                                      // multiplication by the inverse proven to be much faster than solving the linear equation under Eigen.
-  float                    mHeightInside;            // Sampled biggest distance of the Bezier triangle measured from the underlying triangle, < 0
-  float                    mHeightOutside;           // this is > 0
+  double                    mHeightInside;            // Sampled biggest distance of the Bezier triangle measured from the underlying triangle, < 0
+  double                    mHeightOutside;           // this is > 0
   Vector                   mBezierDerivativeDirectionVectorA; // We calculate directional derivatives in two perpendicular directions
   Vector                   mBezierDerivativeDirectionVectorB; // and their cross product will yield the Bezier surface normal
 
@@ -93,12 +93,12 @@ public:
   Vertex getControlPoint(uint32_t const aI) const { return mControlPoints[aI]; }
   std::array<uint32_t, 3u> getNeighbours() const { return mNeighbours; }           // TODO remove
 
-  Vertex interpolateLinear(float const aBary0, float const aBary1, float const aBary2) const;
-  Vertex interpolateLinear(float const aBary0, float const aBary1) const { return interpolateLinear(aBary0, aBary1, 1.0f - aBary0 - aBary1); }
+  Vertex interpolateLinear(double const aBary0, double const aBary1, double const aBary2) const;
+  Vertex interpolateLinear(double const aBary0, double const aBary1) const { return interpolateLinear(aBary0, aBary1, 1.0 - aBary0 - aBary1); }
   Vertex interpolateLinear(Vertex const &aBary) const { return interpolateLinear(aBary(0u), aBary(1u), aBary(2u)); }
 
-  Vertex interpolate(float const aBary0, float const aBary1, float const aBary2) const;
-  Vertex interpolate(float const aBary0, float const aBary1) const { return interpolate(aBary0, aBary1, 1.0f - aBary0 - aBary1); }
+  Vertex interpolate(double const aBary0, double const aBary1, double const aBary2) const;
+  Vertex interpolate(double const aBary0, double const aBary1) const { return interpolate(aBary0, aBary1, 1.0 - aBary0 - aBary1); }
   Vertex interpolate(Vertex const &aBary) const { return interpolate(aBary(0u), aBary(1u), aBary(2u)); }
   Vertex interpolateAboveOriginalCentroid() const { return mControlPoints[csControlIndexAboveOriginalCentroid]; }
 

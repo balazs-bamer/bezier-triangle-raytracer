@@ -9,9 +9,9 @@
 
 class BezierMesh final {
 private:
-  static constexpr std::array<float, 3u> csSampleRatiosOriginalSide = { 0.25f, 0.5f, 0.75f };
-  static constexpr float                 csBezierHeightPerPerimeterLimit = 0.03f;
-  static constexpr float                 csSplitBezierInterpolateFactor  = 0.7f;   // For triangle splitting, new vertex is computed as
+  static constexpr std::array<double, 3u> csSampleRatiosOriginalSide = { 0.25, 0.5, 0.75 };
+  static constexpr double                 csBezierHeightPerPerimeterLimit = 0.03;
+  static constexpr double                 csSplitBezierInterpolateFactor  = 0.7;   // For triangle splitting, new vertex is computed as
                                                                                    // barycentricSplit * (1.0 - csSBIF) + interpolate(barycentricSplit) * csSBIF
 
   std::vector<BezierTriangle>    mMesh;
@@ -41,7 +41,7 @@ private:
   void append2split(Mesh &aResult, uint32_t const aIndexBase, Triangle const &aOriginalTriangle, uint8_t const aSplit) const;
   void append3split(Mesh &aResult, uint32_t const aIndexBase, Triangle const &aOriginalTriangle, uint8_t const aSplit) const;
   void append4split(Mesh &aResult, uint32_t const aIndexBase, Triangle const &aOriginalTriangle) const;
-  Vertex interpolate(uint32_t const aIndex, float const aBary0, float const aBary1, float const aBary2) const;
+  Vertex interpolate(uint32_t const aIndex, double const aBary0, double const aBary1, double const aBary2) const;
 };
 
 #endif

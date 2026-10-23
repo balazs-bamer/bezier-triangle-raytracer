@@ -29,7 +29,7 @@ void testUniformHemisphere(uint32_t const aBelts) {
   Mesh result;
   Mesh sphere;
   sphere.makeUnitSphere(3, 1);
-  sphere *= 0.01f;
+  sphere *= 0.01;
   for(uint32_t i = 0u; i < 1000u; ++i) {
     auto [vector, patch] = hemi.getRandom();
     auto copy = sphere;
@@ -45,11 +45,11 @@ auto visualizeNormals(Mesh const &aMesh) {
   sphere.makeUnitSphere(3, 1);
   for(auto &face : aMesh) {
     auto normal = util::getNormal(face).normalized();
-    auto base = (face[0] + face[1] + face[2]) / 3.0f;
-    auto average = ((face[1] - face[0]).norm() + (face[2] - face[1]).norm() + (face[0] - face[2]).norm()) / 3.0f;
+    auto base = (face[0] + face[1] + face[2]) / 3.0;
+    auto average = ((face[1] - face[0]).norm() + (face[2] - face[1]).norm() + (face[0] - face[2]).norm()) / 3.0;
     auto copy = sphere;
-    auto shrink = Transform::Identity() * (average / 15.0f);
-    copy.transform(shrink, base + normal * (average / 7.0f));
+    auto shrink = Transform::Identity() * (average / 15.0);
+    copy.transform(shrink, base + normal * (average / 7.0));
     std::copy(copy.cbegin(), copy.cend(), std::back_inserter(result));
   }
   return result;
@@ -60,8 +60,8 @@ auto visualizeVertexNormals(Mesh const &aMesh) { // Only for spheres
   Mesh sphere;
   sphere.makeUnitSphere(3, 1);
   auto &first = aMesh[0u];
-  auto distance = ((first[1u] - first[0u]).norm() + (first[2u] - first[1u]).norm() + (first[0u] - first[2u]).norm()) / 3.0f;
-  auto shrink = Transform::Identity() * (distance / 5.0f);
+  auto distance = ((first[1u] - first[0u]).norm() + (first[2u] - first[1u]).norm() + (first[0u] - first[2u]).norm()) / 3.0;
+  auto shrink = Transform::Identity() * (distance / 5.0);
   sphere *= shrink;
   for(auto i : aMesh.getVertex2averageNormals()) {
     auto displacement = i.first + i.second * distance;
@@ -72,18 +72,18 @@ auto visualizeVertexNormals(Mesh const &aMesh) { // Only for spheres
   return result;
 }
 
-auto visualizeRay(Ray const aRay, float const aLength, float const aRadius) {
+auto visualizeRay(Ray const aRay, double const aLength, double const aRadius) {
   Mesh result;
   Vector const perpendicular0 = util::getAperpendicular(aRay.mDirection);
   Vector const perpendicular1 = aRay.mDirection.cross(perpendicular0);
   Vector const rib0 = aRadius * perpendicular0;  // p0 * cos0 + p1 * sin0
-  Vector const rib1 = aRadius * (perpendicular0 * ::cos(2.0f / 3.0f * cgPi) + perpendicular1 * ::sin(2.0f / 3.0f * cgPi));
-  Vector const rib2 = aRadius * (perpendicular0 * ::cos(4.0f / 3.0f * cgPi) + perpendicular1 * ::sin(4.0f / 3.0f * cgPi));
+  Vector const rib1 = aRadius * (perpendicular0 * ::cos(2.0 / 3.0 * cgPi) + perpendicular1 * ::sin(2.0 / 3.0 * cgPi));
+  Vector const rib2 = aRadius * (perpendicular0 * ::cos(4.0 / 3.0 * cgPi) + perpendicular1 * ::sin(4.0 / 3.0 * cgPi));
   Vector const end = aRay.mStart + aRay.mDirection * aLength;
   result.push_back({aRay.mStart + rib0, aRay.mStart + rib1, aRay.mStart + rib2});
   result.push_back({end + rib0, end + rib1, end + rib2});
-  int32_t n = static_cast<int32_t>(::ceil(::abs(aLength) * 0.1f / aRadius));
-  float delta = aLength / n;
+  int32_t n = static_cast<int32_t>(::ceil(::abs(aLength) * 0.1 / aRadius));
+  double delta = aLength / n;
   for(int i = 0; i < n; ++i) {
     Vector section0 = aRay.mStart + aRay.mDirection * delta * i;
     Vector section1 = aRay.mStart + aRay.mDirection * delta * (i + 1);
@@ -97,7 +97,7 @@ auto visualizeRay(Ray const aRay, float const aLength, float const aRadius) {
   return result;
 }
 
-void testDequeDivisor(char const * const aName, int32_t const aSectors, int32_t const aBelts, float const aRadius, int32_t const aDivisor) {
+void testDequeDivisor(char const * const aName, int32_t const aSectors, int32_t const aBelts, double const aRadius, int32_t const aDivisor) {
   std::string name{"test_"};
   name += aName;
   name += ".stl";
@@ -128,7 +128,7 @@ void testDequeDivisor(char const * const aName, int32_t const aSectors, int32_t 
   visualizeVertexNormals(back).writeMesh(cgBaseDir + nameVertexNorm);
 }
 
-void testVectorMax(char const * const aName, int32_t const aSectors, int32_t const aBelts, float const aRadius, float const aMaxSide) {
+void testVectorMax(char const * const aName, int32_t const aSectors, int32_t const aBelts, double const aRadius, double const aMaxSide) {
   std::string name{"test_"};
   name += aName;
   name += ".stl";
@@ -156,7 +156,7 @@ void testVectorMax(char const * const aName, int32_t const aSectors, int32_t con
   visualizeVertexNormals(back).writeMesh(cgBaseDir + nameVertexNorm);
 }
 
-void testBezier2plane(char const * const aName, int32_t const aSectors, int32_t const aBelts, float const aRadius, int32_t const aDivisor) {
+void testBezier2plane(char const * const aName, int32_t const aSectors, int32_t const aBelts, double const aRadius, int32_t const aDivisor) {
   Mesh sphere;
   sphere.makeUnitSphere(aSectors, aBelts);
   Transform inflate = Transform::Identity() * aRadius;
@@ -238,21 +238,21 @@ void testBezierIntersection(char const * const aName, int32_t const aSectors, in
   std::cout << aName << '\n';
 
   Mesh ellipsoid;
-  auto func = [](float const aX){
+  auto func = [](double const aX){
     auto x2 = aX * aX;
-    return ::sqrt(1.0f - x2) + 0.7f * (::exp(-4.0f) - ::exp(-4.0f * x2));
+    return ::sqrt(1.0 - x2) + 0.7 * (::exp(-4.0) - ::exp(-4.0 * x2));
   };
   ellipsoid.makeSolidOfRevolution(aSectors, aBelts, func, aSize);
 
   Mesh bullet;
   bullet.makeUnitSphere(5, 3);
-  bullet *= 0.05f;
+  bullet *= 0.05;
   Mesh intersections;
   Mesh objects;
   Mesh raws;
 
-  Ray ray(Vertex{0.0f, 0.0f, 0.0f}, aDirection);
-  Vector displacement{5.0f, 0.0f, 0.0f};
+  Ray ray(Vertex{0.0, 0.0, 0.0}, aDirection);
+  Vector displacement{5.0, 0.0, 0.0};
 
   auto original = ray;
   std::vector<Vertex> points;
@@ -315,9 +315,9 @@ void testBezierIntersection(char const * const aName, int32_t const aSectors, in
   intersections.writeMesh(cgBaseDir + name);
 
   if(!points.empty()) {
-    points.push_back(points.back() + ray.mDirection * 11.0f);
+    points.push_back(points.back() + ray.mDirection * 11.0);
     std::cout << "error: " << original.getAverageErrorSquared(points) << '\n';
-    auto beam = visualizeRay(original, (points.back() - original.mStart).norm(), 0.02f);
+    auto beam = visualizeRay(original, (points.back() - original.mStart).norm(), 0.02);
 
     name = "intersectionRay_";
     name += aName;
@@ -327,19 +327,19 @@ void testBezierIntersection(char const * const aName, int32_t const aSectors, in
   std::cout << '\n';
 }
 
-void testBezierRefraction(char const * const aName, int32_t const aSectors, int32_t const aBelts, Vector const &aSize, float const aDegreesV, float const aDegreesW, int32_t const aCountV, int32_t const aCountW) {
+void testBezierRefraction(char const * const aName, int32_t const aSectors, int32_t const aBelts, Vector const &aSize, double const aDegreesV, double const aDegreesW, int32_t const aCountV, int32_t const aCountW) {
   std::cout << aName << '\n';
 
   Mesh ellipsoid;
-  auto func = [](float const aX){
+  auto func = [](double const aX){
     auto x2 = aX * aX;
-    return ::sqrt(1.0f - x2) + 0.7f * (::exp(-4.0f) - ::exp(-4.0f * x2));
+    return ::sqrt(1.0 - x2) + 0.7 * (::exp(-4.0) - ::exp(-4.0 * x2));
   };
   ellipsoid.makeSolidOfRevolution(aSectors, aBelts, func, aSize);
 
   Mesh bullet;
   bullet.makeUnitSphere(5, 3);
-  bullet *= 0.05f;
+  bullet *= 0.05;
   Mesh intersections;
   Mesh objects;
   Mesh raws;
@@ -351,14 +351,14 @@ void testBezierRefraction(char const * const aName, int32_t const aSectors, int3
   valids.reserve(aCountV * aCountW);
   for(int32_t v = 0; v < aCountV; ++v) {
     for(int32_t w = 0; w < aCountW; ++w) {
-      auto sinV = ::sin((v * aDegreesV + 1.0f) * cgPi / 180.0f);
-      auto sinW = ::sin((w * aDegreesW + 1.0f) * cgPi / 180.0f);
-      Ray ray({0.0f, 0.0f, 0.0f}, {::sqrt(1.0f - sinV * sinV - sinW * sinW), sinV, sinW});
+      auto sinV = ::sin((v * aDegreesV + 1.0) * cgPi / 180.0);
+      auto sinW = ::sin((w * aDegreesW + 1.0) * cgPi / 180.0);
+      Ray ray({0.0, 0.0, 0.0}, {::sqrt(1.0 - sinV * sinV - sinW * sinW), sinV, sinW});
       rays.push_back(ray);
       valids.push_back(true);
     }
   }
-  Vector displacement{10.0f, 0.0f, 0.0f};
+  Vector displacement{10.0, 0.0, 0.0};
 
   auto previouses = rays;
   std::vector<Vertex> points;
@@ -372,7 +372,7 @@ void testBezierRefraction(char const * const aName, int32_t const aSectors, int3
     auto object = bezier.interpolate(5);
     std::copy(object.cbegin(), object.cend(), std::back_inserter(objects));
 
-    BezierLens lens(1.3f, bezier);
+    BezierLens lens(1.3, bezier);
     for(uint32_t j = 0u; j < 2u; ++j) {
       for(uint32_t r = 0u; r < rays.size(); ++r) {
         if(valids[r]) {
@@ -383,7 +383,7 @@ void testBezierRefraction(char const * const aName, int32_t const aSectors, int3
             copy += rays[r].mStart;
             std::copy(copy.cbegin(), copy.cend(), std::back_inserter(intersections));
 
-            auto beam = visualizeRay(previouses[r], (rays[r].mStart - previouses[r].mStart).norm(), 0.02f);
+            auto beam = visualizeRay(previouses[r], (rays[r].mStart - previouses[r].mStart).norm(), 0.02);
             std::copy(beam.cbegin(), beam.cend(), std::back_inserter(beams));
             previouses[r] = rays[r];
 std::cout << r << (status == RefractionResult::cInside ? " inside\n" : " outside\n");
@@ -400,7 +400,7 @@ std::cout << (j ? "================\n" : "------------------\n");
     }
   }
   for(uint32_t r = 0u; r < rays.size(); ++r) {
-    auto beam = visualizeRay(previouses[r], 11.1f, 0.02f);
+    auto beam = visualizeRay(previouses[r], 11.1, 0.02);
     std::copy(beam.cbegin(), beam.cend(), std::back_inserter(beams));
   }
 
@@ -445,7 +445,7 @@ void measureApproximation(uint32_t const aSplitSteps, int32_t const aSectors, in
   auto vertices = planified.getVertices();  // Due to Clough-Tocher division of small meshes, this will introduce big errors
                                             // Results are only meaningful for sufficiently fine initial meshes, which are easy
                                             // to follow with cubic Bezier triangles.
-  float sum = 0.0f;
+  double sum = 0.0;
   for(auto const &vertex : vertices) {
     Spherical spherical(vertex(0) / aSize(0), vertex(1) / aSize(1), vertex(2) / aSize(2));
     Vertex ethalon { aSize(0) * sin(spherical.mInclination) * cos(spherical.mAzimuth),
@@ -494,22 +494,22 @@ void testCustomStl(char * const aName, int32_t const aDivisor) {  // TODO this d
 }
 
 int main(int argc, char **argv) {
-  Vector ellipsoidAxes(1.0f, 4.0f, 2.0f);
+  Vector ellipsoidAxes(1.0, 4.0, 2.0);
 
   testUniformHemisphere(6u);
 
-/*  testDequeDivisor("dequeDivisor", 7, 7, 3.0f, 3);
+/*  testDequeDivisor("dequeDivisor", 7, 7, 3.0, 3);
 
-  testVectorMax("vectorMax", 4, 2, 13.0f, 11.0f);
-  testVectorMax("vectorIdentity", 4, 1, 1.0f, 11.0f);
+  testVectorMax("vectorMax", 4, 2, 13.0, 11.0);
+  testVectorMax("vectorIdentity", 4, 1, 1.0, 11.0);
 
-  testBezier2plane("4x2", 4, 2, 3.0f, 4);
-  testBezier2plane("7x5", 7, 5, 3.0f, 4);
+  testBezier2plane("4x2", 4, 2, 3.0, 4);
+  testBezier2plane("7x5", 7, 5, 3.0, 4);
 
   testBezierSplitTall("7x3", 7, 3, ellipsoidAxes, 1);
   testBezierSplitTall("15x5", 15, 5, ellipsoidAxes, 1);*/
 
-//  testBezierRefraction("21x15", 21, 15, ellipsoidAxes, 3.0f, 3.0f, 4, 4);
+//  testBezierRefraction("21x15", 21, 15, ellipsoidAxes, 3.0, 3.0, 4, 4);
 //  visualizeFollowers("follow");
 
 /*  measureApproximation(0, 4, 1, ellipsoidAxes, 1);     // SplitSteps: 0 Sectors:  4 Belts:  1 Size: 1 4 2 Divisor: 1 error:      1.2555894
