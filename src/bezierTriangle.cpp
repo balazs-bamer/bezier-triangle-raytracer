@@ -221,22 +221,7 @@ BezierIntersection BezierTriangle::intersectByBezierEvaluations(Ray const &aRay,
         result.mWhat = BezierIntersection::What::cNone;
       }
       else {
-        uint32_t outside = (mNeighbourDividerPlanes[0].distance(result.mIntersection.mPoint) < 0.0 ? 1u : 0u);
-        outside |= (mNeighbourDividerPlanes[1].distance(result.mIntersection.mPoint) < 0.0 ? 2u : 0u);
-        outside |= (mNeighbourDividerPlanes[2].distance(result.mIntersection.mPoint) < 0.0 ? 4u : 0u);
-        if(outside == 1u) {
-          result.mWhat = BezierIntersection::What::cFollowSide0;
-        }
-        else if(outside == 2u) {
-          result.mWhat = BezierIntersection::What::cFollowSide1;
-        }
-        else if(outside == 4u) {
-          result.mWhat = BezierIntersection::What::cFollowSide2;
-        }
-        else { // Most probably not possible for 2 sides at the same time. If yes, that rare case is not interesting
-          result.mWhat = BezierIntersection::What::cIntersect;
-          result.mIntersection.mCosIncidence = aRay.mDirection.dot(result.mNormal);
-        }
+        classifyIntersection(result, aRay);
       }
     }
     else {
@@ -310,22 +295,7 @@ BezierIntersection BezierTriangle::intersectKajiya(Ray const &aRay, LimitPlaneIn
         result.mWhat = BezierIntersection::What::cNone;
       }
       else {
-        uint32_t outside = (mNeighbourDividerPlanes[0].distance(result.mIntersection.mPoint) < 0.0 ? 1u : 0u);
-        outside |= (mNeighbourDividerPlanes[1].distance(result.mIntersection.mPoint) < 0.0 ? 2u : 0u);
-        outside |= (mNeighbourDividerPlanes[2].distance(result.mIntersection.mPoint) < 0.0 ? 4u : 0u);
-        if(outside == 1u) {
-          result.mWhat = BezierIntersection::What::cFollowSide0;
-        }
-        else if(outside == 2u) {
-          result.mWhat = BezierIntersection::What::cFollowSide1;
-        }
-        else if(outside == 4u) {
-          result.mWhat = BezierIntersection::What::cFollowSide2;
-        }
-        else { // Most probably not possible for 2 sides at the same time. If yes, that rare case is not interesting
-          result.mWhat = BezierIntersection::What::cIntersect;
-          result.mIntersection.mCosIncidence = aRay.mDirection.dot(result.mNormal);
-        }
+        classifyIntersection(result, aRay);
       }
     }
     else {
@@ -336,6 +306,25 @@ BezierIntersection BezierTriangle::intersectKajiya(Ray const &aRay, LimitPlaneIn
     result.mWhat = BezierIntersection::What::cNone;
   }
   return result;
+}
+
+void BezierTriangle::classifyIntersection(BezierIntersection &aResult, Ray const &aRay) const {
+  uint32_t outside = (mNeighbourDividerPlanes[0].distance(aResult.mIntersection.mPoint) < 0.0 ? 1u : 0u);
+  outside |= (mNeighbourDividerPlanes[1].distance(aResult.mIntersection.mPoint) < 0.0 ? 2u : 0u);
+  outside |= (mNeighbourDividerPlanes[2].distance(aResult.mIntersection.mPoint) < 0.0 ? 4u : 0u);
+  if(outside == 1u) {
+    aResult.mWhat = BezierIntersection::What::cFollowSide0;
+  }
+  else if(outside == 2u) {
+    aResult.mWhat = BezierIntersection::What::cFollowSide1;
+  }
+  else if(outside == 4u) {
+    aResult.mWhat = BezierIntersection::What::cFollowSide2;
+  }
+  else { // Most probably not possible for 2 sides at the same time. If yes, that rare case is not interesting
+    aResult.mWhat = BezierIntersection::What::cIntersect;
+    aResult.mIntersection.mCosIncidence = aRay.mDirection.dot(aResult.mNormal);
+  }
 }
 
 Vector BezierTriangle::getNormal(Vector const &aBarycentric) const {

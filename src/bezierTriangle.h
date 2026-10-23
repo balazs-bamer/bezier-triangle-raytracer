@@ -126,6 +126,8 @@ public:
 private:
   Vector getNormal(Vector const &aBarycentric) const;
   void computePowerCoefficients();
+  // Sets aResult.mWhat using mNeighbourDividerPlanes, and mCosIncidence for an own intersection. Needs mPoint and mNormal already set.
+  void classifyIntersection(BezierIntersection &aResult, Ray const &aRay) const;
 
   // Works both for the vector coefficients and for their projections to a plane normal.
   template<typename tCoefficient>
