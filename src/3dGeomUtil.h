@@ -1,20 +1,11 @@
-#ifndef CUDA_3D_GEOM_UTIL
-#define CUDA_3D_GEOM_UTIL
+#ifndef BEZIER_TRIANGLE_RAYTRACER_3D_GEOM_UTIL
+#define BEZIER_TRIANGLE_RAYTRACER_3D_GEOM_UTIL
 
 #ifndef EIGEN_DEFAULT_DENSE_INDEX_TYPE
 #define EIGEN_DEFAULT_DENSE_INDEX_TYPE int32_t
 #endif
 
 #include <Eigen/Dense>
-
-#ifndef UTIL_CUDA_PREFIX_DEVICE  // When defined, should be __device__
-#define UTIL_CUDA_PREFIX_DEVICE
-#endif
-
-#ifndef UTIL_CUDA_PREFIX_HOST  // When defined, should be __host__
-#define UTIL_CUDA_PREFIX_HOST
-#endif
-
 
 constexpr float cgPi = 3.14159265358979323846;
 constexpr float cgGeneralEpsilon = 1.0e-5;
@@ -27,46 +18,38 @@ using Transform      = Eigen::Matrix<float, 3, 3>;
 using Triangle       = std::array<Vertex, 3u>;
 
 
-// Namespace-like struct to allow this file act as a header-only library for CPP and CUDA.
+// Namespace-like struct to allow this file act as a header-only library.
 struct util {
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Vector getNormal(Triangle const &aFace) {
     return (aFace[1] - aFace[0]).cross(aFace[2] - aFace[0]);
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Vector getNormal(Vertex const &aVertex0, Vertex const &aVertex1, Vertex const &aVertex2) {
     return (aVertex1 - aVertex0).cross(aVertex2 - aVertex0);
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static float getPerimeter(Triangle const &aTriangle) {
     return (aTriangle[0u] - aTriangle[1u]).norm() + (aTriangle[1u] - aTriangle[2u]).norm() + (aTriangle[2u] - aTriangle[0u]).norm();
   }
 
   // Assumes sum(aB*) == 1
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Vertex barycentric2cartesian(Triangle const &aTriangle, float const aB0, float const aB1, float const aB2) {
     return aTriangle[0u] * aB0 + aTriangle[1u] * aB1 + aTriangle[2u] * aB2;
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Vertex barycentric2cartesian(Triangle const &aTriangle, float const aB0, float const aB1) {
     return aTriangle[0u] * aB0 + aTriangle[1u] * aB1 + aTriangle[2u] * (1.0f - aB0 - aB1);
   }
 
   // Assumes sum(aB*) == 1
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Vertex barycentric2cartesian(Vertex const &aV0, Vertex const &aV1, Vertex const &aV2, float const aB0, float const aB1, float const aB2) {
     return aV0 * aB0 + aV1 * aB1 + aV2 * aB2;
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Vertex barycentric2cartesian(Vertex const &aV0, Vertex const &aV1, Vertex const &aV2, float const aB0, float const aB1) {
     return aV0 * aB0 + aV1 * aB1 + aV2 * (1.0f - aB0 - aB1);
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Matrix getBarycentricInverse(Vertex const &aVertex0, Vertex const &aVertex1, Vertex const &aVertex2) {
     Matrix vertices {
       { aVertex0(0), aVertex1(0), aVertex2(0) },
@@ -76,7 +59,6 @@ struct util {
     return vertices.inverse();
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Vector getAperpendicular(Vector const &aVector) {
     static constexpr float csEpsilon = 1e-10;
 
@@ -94,7 +76,6 @@ struct util {
     return result;
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   template<typename tLambda>
   static void divide(Triangle const &aTriangle, int32_t const aDivisor, tLambda &&aCollector) {
     auto vector01 = (aTriangle[1] - aTriangle[0]) / aDivisor;
@@ -121,7 +102,6 @@ struct util {
     aCollector({base0, aTriangle[1], base2});
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Vector getAltitude(Vertex const &aCommon1, Vertex const &aCommon2, Vertex const &aIndependent) {
     auto commonVector = aCommon2 - aCommon1;
     auto independentVector = aIndependent - aCommon1;
@@ -133,7 +113,6 @@ struct util {
   // 0 between 300 and 030
   // 1 between 030 and 003
   // 2 between 003 and 300
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static uint32_t toWhichSide(Vertex const &aStart, Vertex const &aEnd) {
     uint32_t result = 3u;
     float denom = aStart(0) - aEnd(0) + aStart(1) - aEnd(1);
@@ -169,33 +148,27 @@ struct Ray final {
   Vertex mStart;
   Vector mDirection; // normalized
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Ray() = default;
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Ray(Vertex const &aStart, Vector const &aDirection)
   : mStart(aStart)
   , mDirection(aDirection.normalized()) {}
 
   // Does not consider that a ray is a half-line.
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Vector getPerpendicularTo(Vertex const &aPoint) const {
     return aPoint - mStart - (aPoint - mStart).dot(mDirection) * mDirection;
   }
 
   // Does not consider that a ray is a half-line.
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   float getDistance(Vertex const &aPoint) const {
     return getPerpendicularTo(aPoint).norm();
   }
 
   // Does not consider that a ray is a half-line.
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   float getDistance2(Vertex const &aPoint) const {
     return getPerpendicularTo(aPoint).squaredNorm();
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   float getAverageErrorSquared(std::vector<Vertex> const &aPoints) const {
     float sum = 0.0f;
     for(auto const &point : aPoints) {
@@ -221,15 +194,12 @@ struct Plane final {
   Vector mNormal;        // normalized
   float  mConstant;
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Plane() = default;
 
   // aNormal must be normalized.
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Plane(Vector const &aNormal, float const aConstant) : mNormal(aNormal), mConstant(aConstant) {}
 
   // If aProportion < 0.5, the result will be closer to aPoint0
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Plane         createFrom1proportion2points(float const aProportion, Vertex const &aPoint0, Vertex const &aPoint1) {
     Plane result;
     result.mNormal = (aPoint1 - aPoint0).normalized();
@@ -237,7 +207,6 @@ struct Plane final {
     return result;
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Plane         createFrom3points(Vertex const &aPoint0, Vertex const &aPoint1, Vertex const &aPoint2) {
     Plane result;
     result.mNormal = (aPoint1 - aPoint0).cross(aPoint2 - aPoint0).normalized();
@@ -245,10 +214,8 @@ struct Plane final {
     return result;
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Plane         createFromTriangle(Triangle const &aTriangle) { return createFrom3points(aTriangle[0u], aTriangle[1u], aTriangle[2u]); }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Plane         createFrom1vector2points(Vector const &aDirection, Vertex const &aPoint0, Vertex const &aPoint1) {
     Plane result;
     result.mNormal = aDirection.cross(aPoint1 - aPoint0).normalized();
@@ -256,7 +223,6 @@ struct Plane final {
     return result;
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Plane         createFrom2vectors1point(Vertex const &aDirection0, Vertex const &aDirection1, Vertex const &aPoint) {
     Plane result;
     result.mNormal = aDirection0.cross(aDirection1).normalized();
@@ -264,7 +230,6 @@ struct Plane final {
     return result;
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   static Vertex intersect(Plane const &aPlane0, Plane const &aPlane1, Plane const &aPlane2) {
     Matrix matrix {
       { aPlane0.mNormal(0), aPlane0.mNormal(1), aPlane0.mNormal(2) },
@@ -275,7 +240,6 @@ struct Plane final {
     return matrix.inverse() * vector;
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Intersection  intersect(Vertex const &aStart, Vector const aDirection) const {
     Intersection result;
     result.mCosIncidence = aDirection.dot(mNormal);
@@ -295,18 +259,14 @@ struct Plane final {
     return result;
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Intersection  intersect(Ray const &aRay) const { return intersect(aRay.mStart, aRay.mDirection); }
 
   // Point projection on this plane
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Vector        project(Vector const &aPoint) const { return aPoint - mNormal * (aPoint.dot(mNormal) - mConstant); }
 
   // Distance of point and this plane, >0 if the normal points towards the point.
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   float                distance(Vector const &aPoint) const { return aPoint.dot(mNormal) - mConstant; }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   void                 makeDistancePositive(Vector const aPoint) {
     if(distance(aPoint) < 0.0f) {
       mNormal = -mNormal;
@@ -316,7 +276,6 @@ struct Plane final {
     }
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   void                 makeDistanceNegative(Vector const aPoint) {
     if(distance(aPoint) > 0.0f) {
       mNormal = -mNormal;
@@ -326,7 +285,6 @@ struct Plane final {
     }
   }
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   bool operator<(Plane const &aOther) const { return mNormal(0) < aOther.mNormal(0) // TODO remove: only for debugging
                                                          || mNormal(0) == aOther.mNormal(0) && mNormal(1) < aOther.mNormal(1)
                                                          || mNormal(0) == aOther.mNormal(0) && mNormal(1) == aOther.mNormal(1) && mNormal(2) < aOther.mNormal(2)
@@ -340,7 +298,6 @@ struct Spherical final {
   float mInclination;  // or belt
 
   // Assumes the conversion can be done.
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Spherical(float const aX, float const aY, float const aZ)
   : mR(::sqrt(aX * aX + aY * aY + aZ * aZ))
   , mInclination(::acos(aZ / mR))
@@ -352,10 +309,8 @@ struct Sphere final {  // TODO consider if we need this for bounding sphere inte
   Vector mCenter;
   float  mRadius;
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Sphere() = default;
 
-  UTIL_CUDA_PREFIX_DEVICE UTIL_CUDA_PREFIX_HOST
   Sphere(Vector const &aCenter, float const aRadius) : mCenter(aCenter), mRadius(aRadius) {}
 
   bool doesIntersect(Ray const aRay);

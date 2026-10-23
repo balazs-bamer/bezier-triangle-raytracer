@@ -17,9 +17,5 @@
 **/CMakeLists.txt.user
 **/CTestTestfile.cmake
 **/*.so
-reference/rayTracer
-reference/stl/
-reference/test
-reference/output/**
-reference/googleTest
-reference/manual-test
+build-debug/**
+build-release/**
