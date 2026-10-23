@@ -1,4 +1,4 @@
-# Cuda-based Bézier triangle mesh raytracer
+# Bézier triangle mesh raytracer
 
 ![alt text](./images/intro.jpg "Intro")
 
@@ -6,25 +6,21 @@ The aim of this project is to simulate image rendering of arbitrary-shaped "lens
 
 This work is divided into 4 parts:
 1. [C++ utilities and preprocessor](#1001). These parts check the input and produce the Bézier mesh appropriate to implement raytracing.
-2. [Reference single ray tracing implementation in C++](#1002). I use it actually to develop all geometry and raytracing algorithms, which will later be modified for GPU usage.
-3. [Initial implementation in NVIDIA Thrust](#1003), a quick proof-of-concept implementation based on the reference to produce images.
-4. An iteratively developed [CUDA version](#1004) for best performance.
+2. [A single ray tracing implementation in C++](#1002). I use it actually to develop all geometry and raytracing algorithms.
 
-[Shortcomings](#1005) are here. I use Eigen3 for vector calculations, because it is well supported under CUDA, and Google Test for unit testing. I also use Sebastian Reiter's STL reader utility to parse STL files.
+[Shortcomings](#1005) are here. I use Eigen3 for vector calculations and Google Test for unit testing. I also use Sebastian Reiter's STL reader utility to parse STL files.
 
 [Here](https://db.bme.hu/~bamer/tdk/TDK.html) is my ancient naive implementation of spherical lens system simulator from 1994-1998 (in Hungarian). That work originates from the high school with most parts ready then. I've abandoned the work because a 80386 without an FPU was far too slow for any meaningful rendering. During the university I could complete it and use a Sun workstation for rendering the images.
 
-I use At most C++17 features all thorough the code to let it interoperate with CUDA.
-
 ## C++ utilities and preprocessor
 
-<a id="1001">For</a> space and performance reasons, I use 3D Cartesian coordinates. Since most container sizes are known or calculable, I use `std::vector`s for simple storage. This will let me directly pass the data to GPU code.
+<a id="1001">For</a> space and performance reasons, I use 3D Cartesian coordinates. Since most container sizes are known or calculable, I use `std::vector`s for simple storage.
 
-### reference/util.h
+### src/util.h
 
 This file contain common type declarations for all other sources, some geometry calculations like plane creatian and intersection, triangle altitudes. There is also a simple uniform triangle subdivision function template.
 
-### reference/mesh.h
+### src/mesh.h
 
 This is the home of the `Mesh` class. I know there are several good STL and mesh processing libraries, but I've created this class for three reasons:
 1. I wanted full control over mesh processing.
@@ -69,7 +65,7 @@ Must be run after `Mesh::standardizeNormals`.
 
 Returns a map of vertices to the "vertice normals", which will be the Bézier triangle normals in the vertices. "Vertex normals" are the weighted average of triangle normals containing the vertex, weighted by the triangle angles at thaty vertex. Must be run after `Mesh::standardizeNormals`. Perhaps it would be important to implement a way to import these values along with the triangles when the original surface is known and dervatives are present. This would enable much more exact approximation.
 
-### reference/bezierTriangle.h
+### src/bezierTriangle.h
 
 Here resides the `BézierTriangle` class which is capable of
 * Creating a Bézier triangle over a regular triangle, considering its neighbours, in a way that the neighbouring Bézier surfaces will give a surface with C1 continuity. [[1]](#1) I chosed C1 because cubic Bézier triangles are sufficient for this, and the interpolation and thus the surface intersection calculations will be faster.
@@ -84,9 +80,11 @@ TODO perhaps write control point calculation in detail.
 
 The class contains some precomputed values useful for intersection calculations, like maximum distances from the underlying triangle inside and outside.
 
-#### BezierTriangle::intersection
+#### BezierTriangle::intersectByBezierEvaluations
 
-Theres is no closed formula for Bézier triangle and ray intersection, like there is for planes and spheres. There are existing ray - Bézier triangle intersection algorithms, such as [[2]](#2). However, this algorithm needs investigation of several cases, which is not well suitable for GPUs. Moreover, the article does not contain performance data, and it seemed to me a big effort to implement it. So I've found out a rather simple algorithm based on Newton's method with one or two identical computation-intensive loops, which are easy to run parallel for many rays.
+This is my old intersection function.
+
+Theres is no closed formula for Bézier triangle and ray intersection, like there is for planes and spheres. There are existing ray - Bézier triangle intersection algorithms, such as [[2]](#2). The article does not contain performance data, and it seemed to me a big effort to implement it. So I've found out a rather simple algorithm based on Newton's method with one or two identical computation-intensive loops, which are easy to run parallel for many rays.
 
 First I check the intersection with the underlying planar triangle, and if it intersects, calculate the lengths along the ray measured from its starting point
 * until the ray reaches the signed distance from the underlying plane equal to the maximal surface point above that plane
@@ -109,11 +107,26 @@ When ready, it is important to check if the intersection is within the domain of
 
 Following from the algorithm, the intersection point will lie exactly on the Bézier surface. The relative accuracy of the intersection (so the distance of the intersection point from the ray, normalized by the shape size) is usually **3e-6**, but in the rare cases of bias divergence it can be as high as **2e-4**.
 
+#### BezierTriangle::intersectKajiya
+
+This is a faster and more precise alternative to the previous method, based on the idea of [[10]](#10). It uses the same early-out, planar triangle limit and neighbour classification steps.
+
+The cubic Bézier triangle `S(u, v)` (with `u` and `v` the first two barycentric coordinates) is precomputed in power basis as `S(u, v) = Σ A_ij u^i v^j` for `i + j <= 3`, so its partial derivatives `S_u` and `S_v` are quadratic polynomials with coefficients readily available from the same 10 vectors `A_ij`.
+
+The ray `o + t d` is regarded as the intersection of two planes containing it. Their normals `n1` and `n2` are perpendicular to `d` and to each other, so the planes are parallel to the ray and meet exactly in it. A surface point lies on the ray when it lies on both planes:
+
+`f1(u, v) = n1 · S(u, v) - n1 · o = 0`  
+`f2(u, v) = n2 · S(u, v) - n2 · o = 0`
+
+Projecting the coefficients `A_ij` onto `n1` and `n2` once per ray gives two scalar cubic polynomials. Then a 2D Newton iteration solves the system for `(u, v)` using the 2x2 Jacobian `[[n1 · S_u, n1 · S_v], [n2 · S_u, n2 · S_v]]`, starting from the barycentric coordinates of the planar intersection. Each iteration is only scalar polynomial evaluation, without normalization or cross products. The intersection is accepted only when the Newton step becomes negligible. Finally the surface point `S(u, v)`, the ray parameter `t = d · (S(u, v) - o)` and the normal `S_u × S_v` are calculated once.
+
+A direct Newton iteration on the single ray parameter `t` would need the implicit equation of the Bézier triangle, which is of degree 9 with 220 coefficients, numerically fragile and also has roots outside the triangle.
+
 #### BezierTriangle::getNormal
 
-This function is used in the previous one to calculate the surface normal in the intersection point. I used the principle described in [[4]](#4) to calculate closed-formula barycentric derivatives and use them to calculate two perpendicular surface tangent directions in that point. Their cross product gives the desired normal.
+This function is used in `BezierTriangle::intersectByBezierEvaluations` to calculate the surface normal in the intersection point. I used the principle described in [[4]](#4) to calculate closed-formula barycentric derivatives and use them to calculate two perpendicular surface tangent directions in that point. Their cross product gives the desired normal.
 
-### reference/bezierMesh.h
+### src/bezierMesh.h
 
 The `BezierMesh` class is similar to and based on the `Mesh` class, and is responsible of
 * Constructing the Bézier triangle mesh of `BézierTriangle` instances in Clough-Tocher subdivision [[1]](#1), see later. Input is plain triangle `Mesh`.
@@ -142,11 +155,11 @@ I've chosen an ellipsoid with principal semi-axes 1.0, 2.0 and 4.0 was used for 
 I find these results good enough to start with. Should the error be too big for some application, a more specialized parameter tuning is possible or I might use more sophiticated preprocessing algorithms.
 There are general error limits for surface approximation using Bézier triangles like in [[5]](#5). Here for any triangle where the parametric function describing the surface to approximate is known and its second partial derivatives exist, an upper limit for the error can be expressed.
 
-## Reference C++ raytracer
+## C++ raytracer
 
 <a id="1002">This</a> is just visualization for visual inspection in Blender.
 
-### reference/bezierLens.h
+### src/bezierLens.h
 
 `BezierLens` now only contains the function below. The class is constructed with the refractive index and the `BezierMesh` giving its shape.
 
@@ -156,68 +169,15 @@ This is a simple implementation using relative indices of refraction according t
 - the surface approximation using the Bézier triangle mesh
 - the intersection precision.
 
-## Initial Thrust implementation
-
-<a id="1003">This</a> is illumination simulator, where a rectangular emitter (like a naked power LED) behind a free-form lens illuminates a rectangular surface, on which the light distribution is calculated.
-
-### Theory
-
-A batch of Thrust kernels takes a set of rays and a Bézier mesh, and calculates intersection on every ray vs every Bézier triangle, and on intersection, also refraction. Note, there are "few" triangles, in the magnitude of hundreds or thousand, so the brute-force solution won't mean performance loss. This happens on entering and exiting the lens. After it the intersection with the illuminated surface will be calculated for all refracted rays. From the emitter rays are casted in every direction of the hemisphere.
-
-First I wanted to generate uniform distrinution on a hemisphere by first choosing the "incidence" angle `a` from the uniform distribution (0, pi/2). Now, the radius of a "belt" with this `a` incidence is `sin(a)`. Now if we take a random number with uniform distribution (0, 1) and it is larger than the belt radius, we discard the whole process and start over. On a belt, the direction of the actual point is chosen from the uniform distribution (0, 2pi). It is easy to see that on average pi/2 iterations are needed. However, the direct method based on modified distribution described in [[7]](#7) is about 50% faster, so I use it. For every point, a total of `r` rays will be cast this way.
-
-CUDA kernels work best if possibly all the threads have the same way of execution. This is more likely to happen if the rays in a kernel have similar geometries and hit similar part of the lens. To achieve this, the emitter is divided into `k` by `l` ractangular parts, and the hemisphere also in `b` belts, each one into equal patches depending on its radius. For `0 <= i < b` -th belt (counted from the emitter surface) the number of patches is
-
-<img src="https://render.githubusercontent.com/render/math?math=s_i=\Bigg\lceil 4b \sin\Big(\frac{2i %2B 1}{4b}\pi\Big) \Bigg\rceil">
-
-while the total number of patches `d` is
-
-<img src="https://render.githubusercontent.com/render/math?math=d=\sum_{0}^{b-1} s_i">
-
-The batch of kernels are invocated in the following algorithm:
-
-- Loop for `k` and `l`, so for every divided square
-  - Produce `p` points in the square either in uniform or random way.
-  - Create `d` vectors of length `p*r` each, containing a ray, a point and a point index (or more precisely, 3 vectors to allow more coalesced memory access).
-  - For each point
-    - Cast `r` rays
-      - If the ray hits the bounding sphere of the lens, sort each ray into the corresponding vector together with the actual point index and location.
-  - Now every vector contains at most `p * r / d` items on average.
-  - Prepare `p` pieces of output processing structures
-  - For each vector
-    - If it is not empty
-      - Create cross product with all of its items and all of the Bézier triangles. This is necessary, because Thrust can only handle cross products in an indirect way.
-      - Invoke the batch of kernels
-      - Sort the result into the output processing structures
-  - Process output structures TODO how?
-
-Now only the raytracing itself is handled by Thrust. Perhaps more tasks would be benefitial. The rough ray-lens intersection is determined by checking the lens' bounding sphere. This can be done much faster than a check against the axis-aligned bounding box or anything more complicated. For sake of simplicity, I use Ritter's algorithm [[8]](#8) here, which produces approximately 5% bigger sphere than the optimal one.
-
-## Initial Thrust implementation
-
-<a id="1004">Nothing</a> here yet.
-
 ## Shortcomings
 
 <a id="1005">In</a> theory, my algorithms can handle concave meshes, and the `Mesh` class even meshes with holes in it (with hole walls covered by triangles, so holes in topological sense). In practice I've tried some concave bodies, and the ones with small face angles (< 90-120 degrees, depending on the situation) cause numeric errors, most probably because the extreme variation between sizes of neighbouring triangles and sharp edges.
 
-The intersection algorithm does not report mesh intersection for large angles of incidence (above approximately 70 degrees). This could be fixed with some shallow recursion, but I leave it yet.
+Both intersection algorithms miss more and more mesh intersections as the angle of incidence grows, because they start from the intersection with the underlying planar triangle and follow at most one neighbour. The limit depends on the mesh density. On a coarse 7x3 unit sphere about 90% of the intersections are found at 60 degrees and 60% at 70 degrees. On a finer 21x15 unit sphere practically all are found up to 75 degrees, 85% at 80 degrees and 45% at 86 degrees. This could be fixed with some shallow recursion, but I leave it yet.
 
-Analysis of intersection algorithm lacks exact mathematical proof.
+Analysis of the old intersection algorithm lacks exact mathematical proof. The new one is based on Kajiya's algorithm, which is mathematically well founded,
 
 The refraction algorithm does not handle compound lenses.
-
-## Scratch
-
-For solids of revolutions, the Bézier-triangle mesh is not ultimately necessary. Direct intersection checking can be done based on [[9]](#9) using the following modification:
-
-Instead of <img src="https://render.githubusercontent.com/render/math?math=x\vec{n}"> I use <img src="https://render.githubusercontent.com/render/math?math=Q %2b u\vec{n}"> which is a more exact notation of the line represesenting the rotation of axis. Here, _u_ will also be used as the independent variable of the function _f_ defining the solid of revolution. This determines the choice of _Q_. The ray is given as <img src="https://render.githubusercontent.com/render/math?math=P %2b t\vec{v}">. The distance of the ray and the rotation axis is the same as in the article:
-<img src="https://render.githubusercontent.com/render/math?math=\sqrt{u^2 (\vec{j}\vec{j}) %2b 2u (\vec{j}\vec{k}) %2b \vec{k}\vec{k}}">
-and this should be equal to _f_, i.e. <img src="https://render.githubusercontent.com/render/math?math=g(u) = f(u) - d(u)"> should be 0. For the case of _f_ is monotonic in the interested interval [_l_, _h_], the solution can be easily determined using Newton's method. Suppose it is _u_. Now the intersection point on the solid of revolution is
-
-<img src="https://render.githubusercontent.com/render/math?math=M(u)=P %2b (\frac{Q %2b u\vec{n} - P}{\vec{v}\vec{n}}\vec{n})\vec{v}">
-
-Normal at the intersection point is given by <img src="https://render.githubusercontent.com/render/math?math=M'(u)\times((M(u)-Q-u\vec{n})\times\vec{n})"> where the derivative could be obtained using the five-point stencil numeric method. Special cases of _v_ and _n_ parallel or perpendicular are detailed in the article.
 
 ## References
 
@@ -266,3 +226,8 @@ Versatec, Inc. Santa Clara, California
 Gluyas (2019).
 Intersection of solid of revolution and a line
 https://math.stackexchange.com/questions/1971374/intersection-of-solid-of-revolution-and-a-line
+
+<a id="10">[10]</a>
+James T. Kajiya (1982).
+Ray tracing parametric patches
+Computer Graphics (SIGGRAPH '82 Proceedings), Volume 16, Issue 3, pp 245-254
