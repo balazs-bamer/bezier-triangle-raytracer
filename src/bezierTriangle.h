@@ -55,8 +55,8 @@ private:
   static constexpr double    csProportionControlOnOriginalMedian         = 0.2;
   static constexpr double    csHeightSafetyFactor                        = 1.33333333;
   static constexpr double    csOneThird                                  = 1.0 / 3.0;
-  static constexpr uint32_t csRootSearchIterations                      = 4u;
-  static constexpr int32_t  csHeightSampleDivisor                       = 5;
+  static constexpr uint32_t  csRootSearchIterations                      = 4u;
+  static constexpr int32_t   csHeightSampleDivisor                       = 5;
   static constexpr double    csMaxIntersectionDistanceFromRay            = 0.01;
   static constexpr double    csMinimalRayDistance                        = 1.0;
   static constexpr double    csIntersectionEstimationEpsilon             = 0.000001;
@@ -71,11 +71,10 @@ private:
   // 3-8 somewhere above sides of triangle (0-2): 3i+3, 3i+4 on the same side as (i, (i+1)%3), to be calculated
   // 9 in the middle, to be calculated
   std::array<Vertex, csControlPointsSize>  mControlPoints;
-  // Perhaps not needed, because the iterative method to find ray and Bezier surface intersection takes long. std::array<Vertex, 12u> mDerivativeControlPoints; // T most probably more than 2*6 for each partial derivative.
   Matrix                   mBarycentricInverse;      // T = (v1 v2 v3), b = barycentric coefficient column, v = point on plane, v=Tb, b = mBI * v
                                                      // multiplication by the inverse proven to be much faster than solving the linear equation under Eigen.
-  double                    mHeightInside;            // Sampled biggest distance of the Bezier triangle measured from the underlying triangle, < 0
-  double                    mHeightOutside;           // this is > 0
+  double                   mHeightInside;            // Sampled biggest distance of the Bezier triangle measured from the underlying triangle, < 0
+  double                   mHeightOutside;           // this is > 0
   Vector                   mBezierDerivativeDirectionVectorA; // We calculate directional derivatives in two perpendicular directions
   Vector                   mBezierDerivativeDirectionVectorB; // and their cross product will yield the Bezier surface normal
 

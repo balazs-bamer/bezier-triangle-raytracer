@@ -73,7 +73,7 @@ void BezierTriangle::setMissingFields2(Vertex const &, BezierTriangle const &aTr
   Triangle barycentric{Vertex{{1.0, 0.0, 0.0}}, Vertex{{0.0, 1.0, 0.0}}, Vertex{{0.0, 0.0, 1.0}}};
   util::divide(barycentric, csHeightSampleDivisor, [this](Triangle && aNewBary) {
     for(uint32_t i = 0u; i < 3u; ++i) {
-      auto distance = mUnderlyingPlane.distance(interpolate(aNewBary[i]));  // Will cont most points 2 or 3 times, but don't care now.
+      auto distance = mUnderlyingPlane.distance(interpolate(aNewBary[i]));  // Will count most points 2 or 3 times, but don't care now.
       mHeightInside = std::min(mHeightInside, distance);
       mHeightOutside = std::max(mHeightOutside, distance);
     }
