@@ -22,5 +22,8 @@ add_executable(googleTest googleTest.cpp)
 target_link_libraries(googleTest GTest::GTest GTest::Main)
 add_test(google-test googleTest)
 
-add_executable(manual-test test.cpp)
+add_executable(manual-test manualTest.cpp)
 target_link_libraries(manual-test PreprocessBezierLib)
+
+add_executable(performance-test performanceTest.cpp)
+target_link_libraries(performance-test PreprocessBezierLib)

@@ -245,13 +245,8 @@ struct Plane final {
     result.mCosIncidence = aDirection.dot(mNormal);
     if(::abs(result.mCosIncidence) >= csRayPlaneIntersectionEpsilon) {
       result.mDistance = (mConstant - mNormal.dot(aStart)) / result.mCosIncidence;
-      if(result.mDistance > 0.0) {
-        result.mValid = true;
-        result.mPoint = aStart + result.mDistance * aDirection;
-      }
-      else {
-        result.mValid = false;
-      }
+      result.mValid = true;    // Even if mDistance < 0, see Intersection::mValid.
+      result.mPoint = aStart + result.mDistance * aDirection;
     }
     else {
       result.mValid = false;

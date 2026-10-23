@@ -209,11 +209,11 @@ BezierIntersection BezierMesh::intersect(Ray const &aRay) const {
   result.mIntersection.mDistance = std::numeric_limits<double>::max();
   result.mWhat = BezierIntersection::What::cNone;
   for(auto const &bezier : mMesh) {
-    auto candidate = bezier.intersect(aRay, BezierTriangle::LimitPlaneIntersection::cThis);
+    auto candidate = bezier.intersectKajiya(aRay, BezierTriangle::LimitPlaneIntersection::cThis);
     if(candidate.mWhat == BezierIntersection::What::cFollowSide0 ||
        candidate.mWhat == BezierIntersection::What::cFollowSide1 ||
        candidate.mWhat == BezierIntersection::What::cFollowSide2) {
-      candidate = mMesh[bezier.getNeighbours()[static_cast<uint32_t>(candidate.mWhat)]].intersect(aRay, BezierTriangle::LimitPlaneIntersection::cNone);
+      candidate = mMesh[bezier.getNeighbours()[static_cast<uint32_t>(candidate.mWhat)]].intersectKajiya(aRay, BezierTriangle::LimitPlaneIntersection::cNone);
     }
     else { // Nothing to do
     }

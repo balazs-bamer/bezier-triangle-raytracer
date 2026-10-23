@@ -50,16 +50,32 @@ private:
   static constexpr uint32_t csControlIndex201 = csControlIndexOnSideFromOriginalCentroid1;
   static constexpr uint32_t csControlIndex111 = csControlIndexMiddle;
 
+  // Power basis of the surface in u = bary0, v = bary1: S(u, v) = sum A_ij * u^i * v^j for i + j <= 3
+  static constexpr uint32_t csPowerCoefficientsSize = 10u;
+  static constexpr uint32_t csPowerIndex00 = 0u;
+  static constexpr uint32_t csPowerIndex10 = 1u;
+  static constexpr uint32_t csPowerIndex20 = 2u;
+  static constexpr uint32_t csPowerIndex30 = 3u;
+  static constexpr uint32_t csPowerIndex01 = 4u;
+  static constexpr uint32_t csPowerIndex11 = 5u;
+  static constexpr uint32_t csPowerIndex21 = 6u;
+  static constexpr uint32_t csPowerIndex02 = 7u;
+  static constexpr uint32_t csPowerIndex12 = 8u;
+  static constexpr uint32_t csPowerIndex03 = 9u;
+
   static constexpr double    csProportionControlOnOriginalSide           = 0.291;
   static constexpr double    csProportionControlOnOriginalVertexCentroid = 0.304;
   static constexpr double    csProportionControlOnOriginalMedian         = 0.2;
   static constexpr double    csHeightSafetyFactor                        = 1.33333333;
   static constexpr double    csOneThird                                  = 1.0 / 3.0;
-  static constexpr uint32_t  csRootSearchIterations                      = 4u;
+  static constexpr uint32_t  csRootSearchIterations4bezierEvaluations    = 4u;
   static constexpr int32_t   csHeightSampleDivisor                       = 5;
   static constexpr double    csMaxIntersectionDistanceFromRay            = 0.01;
   static constexpr double    csMinimalRayDistance                        = 1.0;
   static constexpr double    csIntersectionEstimationEpsilon             = 0.000001;
+  static constexpr uint32_t  csRootSearchIterations4kajiya               = 12u;
+  static constexpr double    csKajiyaBarycentricEpsilon                  = 1e-12;  // Newton stops when the barycentric step is smaller.
+  static constexpr double    csKajiyaDeterminantEpsilon                  = 1e-20;  // Below this the ray is regarded parallel to the surface.
 
   Plane                    mUnderlyingPlane;         // Plane span by mControlPoints[0-2], normal is normalized and points outwards.
   std::array<Plane, 3u>    mNeighbourDividerPlanes;  // For indices 1 and 2, these are about the plane going through each edge in direction the average of the adjacent side normals.
@@ -71,6 +87,7 @@ private:
   // 3-8 somewhere above sides of triangle (0-2): 3i+3, 3i+4 on the same side as (i, (i+1)%3), to be calculated
   // 9 in the middle, to be calculated
   std::array<Vertex, csControlPointsSize>  mControlPoints;
+  std::array<Vector, csPowerCoefficientsSize> mPowerCoefficients; // Computed from mControlPoints, see csPowerIndex*. Derivatives are taken from these analytically.
   Matrix                   mBarycentricInverse;      // T = (v1 v2 v3), b = barycentric coefficient column, v = point on plane, v=Tb, b = mBI * v
                                                      // multiplication by the inverse proven to be much faster than solving the linear equation under Eigen.
   double                   mHeightInside;            // Sampled biggest distance of the Bezier triangle measured from the underlying triangle, < 0
@@ -101,10 +118,19 @@ public:
   Vertex interpolate(Vertex const &aBary) const { return interpolate(aBary(0u), aBary(1u), aBary(2u)); }
   Vertex interpolateAboveOriginalCentroid() const { return mControlPoints[csControlIndexAboveOriginalCentroid]; }
 
-  BezierIntersection intersect(Ray const &aRay, LimitPlaneIntersection const aShouldLimitPlaneIntersection) const;
+  BezierIntersection intersectByBezierEvaluations(Ray const &aRay, LimitPlaneIntersection const aShouldLimitPlaneIntersection) const;
+  // Ray is regarded as the intersection of two planes containing it, and Newton's method solves for the barycentric coordinates
+  // where the Bezier surface touches both planes. Uses the power basis and its analytical derivatives.
+  BezierIntersection intersectKajiya(Ray const &aRay, LimitPlaneIntersection const aShouldLimitPlaneIntersection) const;
 
 private:
   Vector getNormal(Vector const &aBarycentric) const;
+  void computePowerCoefficients();
+
+  // Works both for the vector coefficients and for their projections to a plane normal.
+  template<typename tCoefficient>
+  static void evaluatePower(std::array<tCoefficient, csPowerCoefficientsSize> const &aCoefficients, double const aU, double const aV,
+                            tCoefficient &aValue, tCoefficient &aDerivativeU, tCoefficient &aDerivativeV);
 };
 
 #endif
