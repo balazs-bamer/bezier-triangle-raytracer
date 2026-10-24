@@ -29,7 +29,7 @@ This is the home of the `Mesh` class. I know there are several good STL and mesh
 4. I enjoy working with geometry vectors.
 
 The `Mesh` class exposes a set of STL vector-like interface functions for easier use. It also provides overloaded operators for displacement and inflation operations, STL file I/O. Here I only write about the more interesting functions.
-Note, this class can only handle a mesh consisting of **exactly one totally filled** shape.
+Note, this class can only handle a mesh consisting of **exactly one connected** shape, which can be either totally filled (closed) or open.
 
 #### Mesh::standardizeVertices
 
@@ -49,6 +49,12 @@ This function makes all triangle normals point outwards if calculated as `(trian
 7. Loop to 5. if the set is not empty.
 
 This function also gathers auxiliary data for later stages, see below.
+
+#### Mesh::standardizeNormals(Vector const &aFrontDirection)
+
+This variant also accepts open meshes, where "outwards" has no meaning. Instead, the initial triangle will be the one facing most in (or against) `aFrontDirection`, and its normal will point to `aFrontDirection`. An edge belonging to only one triangle is on the rim: its neighbour index is `Mesh::csNoNeighbour`, and its vertices are collected in `getBoundaryVertices()`. As a vertex lying on the side of another triangle would look like a rim, too, I check every rim vertex against the rim edges. Both variants reject edges belonging to more than two triangles, and meshes consisting of more than one piece.
+
+A triangle having none of its vertices on the rim is a *core* triangle (`Mesh::isCoreFace`). Its vertex normals are averages of complete fans, just like in a closed mesh.
 
 #### Mesh::makeEllipsoid(int32_t const aSectors, int32_t const aBelts, Vector const &aSize)
 
@@ -133,6 +139,10 @@ The `BezierMesh` class is similar to and based on the `Mesh` class, and is respo
 * Obtaining a triangular mesh approximation (`interpolate`) with evenly subdividing each subtriangle side into `aDivisor` parts.
 * Split "thick" Bézier triangles into smaller, "thinner" ones.
 
+#### Open meshes
+
+For an open `Mesh`, only the core triangles become Bézier triangles. The outer ring of triangles serves only as neighbours: their planar normals determine the planes between neighbours along the new rim, and they complete the vertex normal fans. So the Bézier triangles of an open mesh are identical to those the same triangles would get in a bigger, even closed mesh, with no extrapolation involved. The price is that the input mesh needs one extra ring of triangles around the desired surface. A mask passed to the constructor can further restrict which core triangles are built.
+
 #### BezierMesh::splitThickBezierTriangles
 
 I've implemented this function because the ray tracing will inspect the mesh and ray intersections using the underlying triangle mesh (after Clough-Tocher subdivision). When we have the planar intersection, it will be used to calculate the ray intersection with the Bézier triangle above it. However, if the Bézier triangle forms a relatively too "tall" dome above the underlying triangle, it is more likely that a ray can travel through it without intersecting any planar triangle. Of course, it is still possible when the Bézier triangles are "close" to the underlying triangles, but much less likely. In such a rare case, the simulation will find the ray pass just right beside the object.
@@ -145,9 +155,15 @@ The algorithm is simple: I take the underlying side midpoints of a "tall" Bézie
 
 New (dividing) vertices are calculated as a fixed linear combination of the side midpoint of the underlying triangle edge and the Bézier interpolation of that point (which is "above" the underlying triangle). The linear combination factor has been found empirically, see below. The function gives back a new, finer `Mesh` instance, which then needs to be preprocessed again and used in the creation of a new, finer `BézierMesh`.
 
+For an open mesh, the triangles not built are copied to the result, and split where a built neighbour requires it. Their dividing vertices come from the built neighbour, as the Bézier curve of the common side is the same. Such a triangle can share at most one side with the core, so it is only split into 2, and the outer ring survives the refinement.
+
 #### BezierMesh::intersect
 
 This is now only a simple brute-force search for the intersection giving the shortest ray.
+
+Kajiya's method may converge to the polynomial continuation of a Bézier triangle far outside its domain. `BezierTriangle::classifyIntersection` lets such a point through when it is outside two divider planes, and as the closest one, it would replace the real intersection. So I reject intersections with a barycentric coordinate below `csMinBarycentricOfHit` (-0.2), as I have not seen real intersections below -0.1. Before this filter, 0.4% to 6% of the intersections on the test meshes were such false ones.
+
+For open meshes, an intersection leading beyond the rim counts as no intersection. A ray hitting the surface close to the rim may cross the underlying plane just beyond the rim edge, where no neighbour catches it. So a Bézier triangle on the rim gets a second try without the planar limit, if the planar intersection is close beyond its rim edge. Without this, up to a third of the intersections near the rim would be lost even at moderate angles of incidence.
 
 #### Ellipse approximation test
 
@@ -177,7 +193,9 @@ Both intersection algorithms miss more and more mesh intersections as the angle 
 
 Analysis of the old intersection algorithm lacks exact mathematical proof. The new one is based on Kajiya's algorithm, which is mathematically well founded,
 
-The refraction algorithm does not handle compound lenses.
+The refraction algorithm does not handle compound lenses. For open meshes, its inside and outside mean behind and in front of the oriented surface.
+
+Open meshes need an extra ring of triangles around the desired surface, see [open meshes](#open-meshes). Extrapolating "phantom" triangles across the rim would spare this, but only with an approximate rim shape.
 
 ## References
 

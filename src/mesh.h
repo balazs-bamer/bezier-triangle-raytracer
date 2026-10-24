@@ -10,6 +10,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <limits>
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
@@ -20,15 +21,19 @@ private:
   static constexpr double csStandardizeVerticesEpsilonFactor        = 0.2;
   static constexpr double csStandardizeNormalsEpsilon               = 0.01;
   static constexpr double csStandardizeNormalsIndependentMoveFactor = 0.2;
+  static constexpr double csBoundaryVertexOnEdgeEpsilonFactor       = 0.01;
 
 public:
   using TheMesh         = std::vector<Triangle>;
   using value_type      = Triangle;
-  
+
+  static constexpr uint32_t csNoNeighbour       = std::numeric_limits<uint32_t>::max(); // In Neighbours::mFellowTriangles for an edge on the rim of an open mesh.
+  static constexpr uint8_t  csNoCommonSideStart = 3u;                                   // In Neighbours::mFellowCommonSideStarts for the same.
+
   struct Neighbours final {
-    std::array<uint32_t, 3u> mFellowTriangles;        // Triangle indices: neighbour of edge (index, index + 1)
+    std::array<uint32_t, 3u> mFellowTriangles;        // Triangle indices: neighbour of edge (index, index + 1), or csNoNeighbour
     std::array<uint8_t, 3u>  mFellowCommonSideStarts; // Vertice index in each fellow triangle where the common side starts,
-                                                      // such that the side in the neighbouring triangle is (i, i+1)
+                                                      // such that the side in the neighbouring triangle is (i, i+1), or csNoCommonSideStart
   };
 
   struct VertexHash {
@@ -45,6 +50,7 @@ private:
   TheMesh               mMesh;
   Face2neighbours       mFace2neighbours;
   Vertex2averageNormals mVertex2averageNormals;
+  Vertices              mBoundaryVertices;      // Vertices on the rim of an open mesh, empty for a closed one.
 
 public:
   Mesh() = default;
@@ -76,7 +82,19 @@ public:
 /// Should run after standardizeVertices.
 /// But not after auto divideLargeTriangles(double const aMaxTriangleSide), because it will probably put vertices on edges of other triangles.
 /// Only this method populates the member variable mFace2neighbours and mVertex2averageNormals
+/// For closed meshes only, throws if an edge belongs to only one triangle.
   void standardizeNormals();
+
+/// The same for open meshes (and closed ones too), where "outwards" has no meaning. Instead the triangle facing
+/// most in aFrontDirection (or opposite to it) will have its normal pointing to aFrontDirection, and all others
+/// accordingly. Edges on the rim get csNoNeighbour, and their vertices form getBoundaryVertices().
+  void standardizeNormals(Vector const &aFrontDirection);
+
+/// These are valid after standardizeNormals.
+  bool            isClosed() const            { return mBoundaryVertices.empty(); }
+  Vertices const& getBoundaryVertices() const { return mBoundaryVertices; }
+/// True if no vertex of the triangle is on the rim, so all its vertex normals are averages of complete fans.
+  bool            isCoreFace(uint32_t const aIndex) const;
 
   void transform(Transform const &aTransform, Vertex const aDisplacement);
 
@@ -124,7 +142,10 @@ private:
 
   std::tuple<Edge2face, Face2vertex, Vertex2index> createEdge2faceFace2vertex() const;
   std::pair<double, std::unordered_set<uint32_t>> getSmallestXstuff(Face2vertex const &aFace2vertex, Vertex2index const &) const;
-  void createFace2neighbour(Edge2face const &aEdge2face, Face2vertex const &aFace2vertex);
+  void createFace2neighbour(Edge2face const &aEdge2face, Face2vertex const &aFace2vertex, bool const aAllowOpen);
+  void checkVerticesOnBoundaryEdges() const;
+  void orientFaces(Edge2face const &aEdge2face, Face2vertex const &aFace2vertex, std::unordered_set<uint32_t> const &aSeedCandidates,
+                   Vector const &aDesiredVector, bool const aAllowOpen);
   uint32_t getInitialFaceIndex(std::unordered_set<uint32_t> const &aFacesAtSmallestX, Vertex const &aDesiredVector) const;
   static void normalize(Triangle &aFace, Vertex const &aDesiredVector);
   static void normalize(Triangle const &aFaceKnown, Triangle &aFaceUnknown);

@@ -19,7 +19,7 @@ INCLUDE_DIRECTORIES ( "/opt/alk/eigen-5.0.1"
 ADD_LIBRARY (PreprocessBezierLib SHARED ${PreprocessBezierSrc})
 
 add_executable(googleTest googleTest.cpp)
-target_link_libraries(googleTest GTest::GTest GTest::Main)
+target_link_libraries(googleTest PreprocessBezierLib GTest::GTest GTest::Main)
 add_test(google-test googleTest)
 
 add_executable(manual-test manualTest.cpp)

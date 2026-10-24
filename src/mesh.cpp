@@ -182,9 +182,10 @@ std::pair<double, std::unordered_set<uint32_t>> Mesh::getSmallestXstuff(Face2ver
   return std::make_pair(smallestX, facesAtSmallestX);
 }
 
-void Mesh::createFace2neighbour(Edge2face const &aEdge2face, Face2vertex const &aFace2vertex) {
+void Mesh::createFace2neighbour(Edge2face const &aEdge2face, Face2vertex const &aFace2vertex, bool const aAllowOpen) {
   mFace2neighbours.clear();
   mFace2neighbours.reserve(mMesh.size());
+  mBoundaryVertices.clear();
   for(uint32_t indexFace = 0u; indexFace < mMesh.size(); ++indexFace) {
     auto const &face = aFace2vertex[indexFace];
     Neighbours neighbours;
@@ -198,27 +199,78 @@ void Mesh::createFace2neighbour(Edge2face const &aEdge2face, Face2vertex const &
       else { // Nothing to do
       }
       auto[begin, end] = aEdge2face.equal_range(edge);
-      if(begin->second == indexFace) {                                // We need the other, neighbouring face.
-        ++begin;
-        if(begin == end) {
+      auto const faceCount = std::distance(begin, end);
+      if(faceCount > 2) {
+        throw "Edge belonging to more than two triangles detected.";
+      }
+      else if(faceCount == 1) {                                       // Only this face, so the edge is on the rim.
+        if(aAllowOpen) {
+          neighbours.mFellowTriangles[indexInFace] = csNoNeighbour;
+          neighbours.mFellowCommonSideStarts[indexInFace] = csNoCommonSideStart;
+          mBoundaryVertices.insert(mMesh[indexFace][indexInFace]);
+          mBoundaryVertices.insert(mMesh[indexFace][(indexInFace + 1u) % 3u]);
+        }
+        else {
           throw "Vertex on edge detected.";
+        }
+      }
+      else {
+        if(begin->second == indexFace) {                              // We need the other, neighbouring face.
+          ++begin;
+        }
+        else { // Nothing to do
+        }
+        auto otherFaceIndex = begin->second;
+        neighbours.mFellowTriangles[indexInFace] = otherFaceIndex;    // Neighbour of edge (index, index + 1)
+        auto const &otherFace = aFace2vertex[otherFaceIndex];
+        auto otherFaceRawIndex0 = std::find(otherFace.cbegin(), otherFace.cend(), vertexIndex0) - otherFace.cbegin();
+        auto otherFaceRawIndex1 = std::find(otherFace.cbegin(), otherFace.cend(), vertexIndex1) - otherFace.cbegin();
+        uint32_t const resolve[3u][3u] = {{3u, 0u, 2u}, {0u, 3u, 1u}, {2u, 1u, 3u}};
+
+        neighbours.mFellowCommonSideStarts[indexInFace] = resolve[otherFaceRawIndex0][otherFaceRawIndex1];
+      }
+    }
+    mFace2neighbours.push_back(neighbours);
+  }
+}
+
+// In an open mesh a vertex lying on an other triangle's edge would look like a rim, so we need to check it explicitly.
+void Mesh::checkVerticesOnBoundaryEdges() const {
+  std::vector<std::pair<Vertex, Vertex>> boundaryEdges;
+  for(uint32_t indexFace = 0u; indexFace < mMesh.size(); ++indexFace) {
+    for(uint32_t indexInFace = 0u; indexInFace < 3u; ++indexInFace) {
+      if(mFace2neighbours[indexFace].mFellowTriangles[indexInFace] == csNoNeighbour) {
+        boundaryEdges.emplace_back(std::make_pair(mMesh[indexFace][indexInFace], mMesh[indexFace][(indexInFace + 1u) % 3u]));
+      }
+      else { // Nothing to do
+      }
+    }
+  }
+  if(!boundaryEdges.empty()) {
+    double const epsilon = getSmallestSide() * csBoundaryVertexOnEdgeEpsilonFactor;
+    for(auto const &vertex : mBoundaryVertices) {
+      for(auto const &[start, end] : boundaryEdges) {
+        if(vertex != start && vertex != end) {
+          Vector const side = end - start;
+          double const proportion = (vertex - start).dot(side) / side.squaredNorm();
+          if(proportion > 0.0 && proportion < 1.0 && (start + side * proportion - vertex).norm() < epsilon) {
+            throw "Vertex on edge detected.";
+          }
+          else { // Nothing to do
+          }
         }
         else { // Nothing to do
         }
       }
-      else { // Nothing to do
-      }
-      auto otherFaceIndex = begin->second;
-      neighbours.mFellowTriangles[indexInFace] = otherFaceIndex;      // Neighbour of edge (index, index + 1)
-      auto const &otherFace = aFace2vertex[otherFaceIndex];
-      auto otherFaceRawIndex0 = std::find(otherFace.cbegin(), otherFace.cend(), vertexIndex0) - otherFace.cbegin();
-      auto otherFaceRawIndex1 = std::find(otherFace.cbegin(), otherFace.cend(), vertexIndex1) - otherFace.cbegin();
-      uint32_t const resolve[3u][3u] = {{3u, 0u, 2u}, {0u, 3u, 1u}, {2u, 1u, 3u}};
-
-      neighbours.mFellowCommonSideStarts[indexInFace] = resolve[otherFaceRawIndex0][otherFaceRawIndex1];
     }
-    mFace2neighbours.push_back(neighbours);
   }
+  else { // Nothing to do
+  }
+}
+
+bool Mesh::isCoreFace(uint32_t const aIndex) const {
+  auto const &face = mMesh[aIndex];
+  return std::none_of(face.cbegin(), face.cend(), [this](Vertex const &aVertex){ return mBoundaryVertices.count(aVertex) > 0u; });
 }
 
 uint32_t Mesh::getInitialFaceIndex(std::unordered_set<uint32_t> const &aFacesAtSmallestX, Vertex const &aDesiredVector) const {
@@ -308,27 +360,46 @@ void Mesh::calculateNormalAverages4vertices() {
 }
 
 void Mesh::standardizeNormals() {
+  auto [edge2face, face2vertex, vertex2index] = createEdge2faceFace2vertex();
+  auto [smallestX, facesAtSmallestX] = getSmallestXstuff(face2vertex, vertex2index);
+
+  Vertex desiredVector;                                                 // A known unit vector pointing outwards for a definite face.
+  desiredVector << -1.0, 0.0, 0.0;
+  orientFaces(edge2face, face2vertex, facesAtSmallestX, desiredVector, false);
+}
+
+void Mesh::standardizeNormals(Vector const &aFrontDirection) {
+  auto [edge2face, face2vertex, vertex2index] = createEdge2faceFace2vertex();
+  std::unordered_set<uint32_t> allFaces;                                // Any face can be the initial one.
+  for(uint32_t indexFace = 0u; indexFace < mMesh.size(); ++indexFace) {
+    allFaces.insert(indexFace);
+  }
+  orientFaces(edge2face, face2vertex, allFaces, aFrontDirection, true);
+}
+
+void Mesh::orientFaces(Edge2face const &aEdge2face, Face2vertex const &aFace2vertex, std::unordered_set<uint32_t> const &aSeedCandidates,
+                       Vector const &aDesiredVector, bool const aAllowOpen) {
   {
-    auto [edge2face, face2vertex, vertex2index] = createEdge2faceFace2vertex();
-    auto [smallestX, facesAtSmallestX] = getSmallestXstuff(face2vertex, vertex2index);
+    createFace2neighbour(aEdge2face, aFace2vertex, aAllowOpen);
+    checkVerticesOnBoundaryEdges();
 
-    createFace2neighbour(edge2face, face2vertex);
-
-    Vertex desiredVector;                                               // A known unit vector pointing outwards for a definite face.
-    desiredVector << -1.0, 0.0, 0.0;
-    uint32_t initialFaceIndex = getInitialFaceIndex(facesAtSmallestX, desiredVector);
+    uint32_t initialFaceIndex = getInitialFaceIndex(aSeedCandidates, aDesiredVector);
 
     struct KnownUnknownFacePair {
       uint32_t mKnownIndex;
       uint32_t mUnknownIndex;
     };
     std::list<KnownUnknownFacePair> queue;                              // Faces with normals yet to be normalized.
-    normalize(mMesh[initialFaceIndex], desiredVector);
+    normalize(mMesh[initialFaceIndex], aDesiredVector);
     std::vector<bool> remaining;
     remaining.reserve(mFace2neighbours.size());
     std::fill_n(std::back_inserter(remaining), mFace2neighbours.size(), true);
     for(auto const indexFace : mFace2neighbours[initialFaceIndex].mFellowTriangles) {
-      queue.emplace_back(KnownUnknownFacePair{initialFaceIndex, indexFace});
+      if(indexFace != csNoNeighbour) {
+        queue.emplace_back(KnownUnknownFacePair{initialFaceIndex, indexFace});
+      }
+      else { // Nothing to do
+      }
     }
     remaining[initialFaceIndex] = false;
     while(!queue.empty()) {
@@ -341,17 +412,22 @@ void Mesh::standardizeNormals() {
       }
       remaining[actualPair.mUnknownIndex] = false;
       for(auto const indexFace : mFace2neighbours[actualPair.mUnknownIndex].mFellowTriangles) {
-        if(remaining[indexFace] && actualPair.mUnknownIndex != indexFace) {
+        if(indexFace != csNoNeighbour && remaining[indexFace] && actualPair.mUnknownIndex != indexFace) {
           queue.emplace_back(KnownUnknownFacePair{actualPair.mUnknownIndex, indexFace});
         }
         else { // Nothing to do
         }
       }
     }
+    if(std::find(remaining.cbegin(), remaining.cend(), true) != remaining.cend()) {
+      throw "Mesh consisting of more than one piece detected.";
+    }
+    else { // Nothing to do
+    }
   }
   {
     auto [edge2face, face2vertex, vertex2index] = createEdge2faceFace2vertex();
-    createFace2neighbour(edge2face, face2vertex);                       // Need to call it once more, because we swapped vertices of triangles
+    createFace2neighbour(edge2face, face2vertex, aAllowOpen);           // Need to call it once more, because we swapped vertices of triangles
   }
   calculateNormalAverages4vertices();
 }

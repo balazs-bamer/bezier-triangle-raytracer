@@ -1,8 +1,13 @@
 #include "3dGeomUtil.h"
+#include "bezierMesh.h"
 
+#include<set>
 #include<deque>
+#include<random>
+#include<string>
 #include<vector>
 #include<iostream>
+#include<functional>
 
 #include "gtest/gtest.h"
 
@@ -350,6 +355,234 @@ TEST(toWhichSide, Points) {
     auto converter = util::getBarycentricInverse(triangle0, triangle1, triangle2);
     EXPECT_EQ(util::toWhichSide(converter * start, converter * end), 0u);
   }
+}
+
+std::string getException(std::function<void()> const &aCode) {
+  try {
+    aCode();
+  }
+  catch(char const * const aMessage) {
+    return aMessage;
+  }
+  return "";
+}
+
+// Open grid of aCount x aCount squares over [-1, 1] x [-1, 1] on the surface z = aCurvature * (x^2 + y^2)
+Mesh makeGrid(int32_t const aCount, double const aCurvature) {
+  auto vertex = [aCount, aCurvature](int32_t const aI, int32_t const aJ) {
+    double const x = 2.0 * aI / aCount - 1.0;
+    double const y = 2.0 * aJ / aCount - 1.0;
+    return Vertex{x, y, aCurvature * (x * x + y * y)};
+  };
+  Mesh result;
+  for(int32_t i = 0; i < aCount; ++i) {
+    for(int32_t j = 0; j < aCount; ++j) {
+      result.push_back(Triangle{vertex(i, j), vertex(i + 1, j), vertex(i + 1, j + 1)});
+      result.push_back(Triangle{vertex(i, j), vertex(i + 1, j + 1), vertex(i, j + 1)});
+    }
+  }
+  return result;
+}
+
+// Keeps the triangles of a closed solid of revolution above z = 0, and gives their original indices too.
+std::pair<Mesh, std::vector<uint32_t>> makeUpperHalf(Mesh const &aClosed) {
+  Mesh result;
+  std::vector<uint32_t> indices;
+  for(uint32_t i = 0u; i < aClosed.size(); ++i) {
+    auto const &triangle = aClosed[i];
+    if(triangle[0u](2) + triangle[1u](2) + triangle[2u](2) > 0.0) {
+      result.push_back(triangle);
+      indices.push_back(i);
+    }
+    else { // Nothing to do
+    }
+  }
+  result.standardizeNormals(Vector{0.0, 0.0, 1.0});
+  return std::make_pair(result, indices);
+}
+
+uint32_t countBoundaryEdges(Mesh const &aMesh) {
+  uint32_t result = 0u;
+  for(auto const &neighbours : aMesh.getFace2neighbours()) {
+    result += std::count(neighbours.mFellowTriangles.cbegin(), neighbours.mFellowTriangles.cend(), Mesh::csNoNeighbour);
+  }
+  return result;
+}
+
+uint32_t countCoreFaces(Mesh const &aMesh) {
+  uint32_t result = 0u;
+  for(uint32_t i = 0u; i < aMesh.size(); ++i) {
+    result += (aMesh.isCoreFace(i) ? 1u : 0u);
+  }
+  return result;
+}
+
+// Consistent means each edge is traversed in opposite directions by its two triangles.
+bool isConsistentlyOriented(Mesh const &aMesh) {
+  std::set<std::array<double, 6u>> directedEdges;
+  bool result = true;
+  for(auto const &triangle : aMesh) {
+    for(uint32_t i = 0u; i < 3u; ++i) {
+      auto const &start = triangle[i];
+      auto const &end = triangle[(i + 1u) % 3u];
+      result = result && directedEdges.insert({start(0), start(1), start(2), end(0), end(1), end(2)}).second;
+    }
+  }
+  return result;
+}
+
+TEST(openMesh, Grid) {
+  int32_t const count = 6;
+  auto mesh = makeGrid(count, 0.2);
+  mesh.standardizeVertices();
+  mesh.standardizeNormals(Vector{0.0, 0.0, -1.0});
+  EXPECT_FALSE(mesh.isClosed());
+  EXPECT_EQ(countBoundaryEdges(mesh), 4u * count);
+  EXPECT_EQ(mesh.getBoundaryVertices().size(), 4u * count);
+  EXPECT_EQ(countCoreFaces(mesh), 2u * (count - 2) * (count - 2));
+  EXPECT_TRUE(isConsistentlyOriented(mesh));
+  for(auto const &triangle : mesh) {
+    EXPECT_LT(util::getNormal(triangle)(2), 0.0);
+  }
+  BezierMesh bezier(mesh);
+  EXPECT_EQ(bezier.size(), 3u * countCoreFaces(mesh));
+}
+
+TEST(openMesh, SingleTriangle) {
+  Mesh mesh;
+  mesh.push_back(Triangle{Vertex{0.0, 0.0, 0.0}, Vertex{1.0, 0.0, 0.0}, Vertex{0.0, 1.0, 0.0}});
+  mesh.standardizeNormals(Vector{0.0, 0.0, 1.0});
+  EXPECT_EQ(countBoundaryEdges(mesh), 3u);
+  EXPECT_EQ(mesh.getBoundaryVertices().size(), 3u);
+  EXPECT_EQ(countCoreFaces(mesh), 0u);
+  EXPECT_GT(util::getNormal(mesh[0u])(2), 0.0);
+  BezierMesh bezier(mesh);
+  EXPECT_EQ(bezier.size(), 0u);
+}
+
+TEST(openMesh, ClosedSphere) {
+  Mesh mesh;
+  mesh.makeUnitSphere(7, 3);
+  mesh.standardizeVertices();
+  mesh.standardizeNormals(Vector{-1.0, 0.0, 0.0});
+  EXPECT_TRUE(mesh.isClosed());
+  EXPECT_EQ(countBoundaryEdges(mesh), 0u);
+  EXPECT_EQ(countCoreFaces(mesh), mesh.size());
+  EXPECT_TRUE(isConsistentlyOriented(mesh));
+}
+
+TEST(openMesh, Errors) {
+  auto grid = makeGrid(3, 0.0);
+  EXPECT_EQ(getException([&grid](){ grid.standardizeNormals(); }), "Vertex on edge detected.");
+
+  Vertex const a{0.0, 0.0, 0.0};
+  Vertex const b{2.0, 0.0, 0.0};
+  Mesh nonManifold;
+  nonManifold.push_back(Triangle{a, b, Vertex{1.0, 1.0, 0.0}});
+  nonManifold.push_back(Triangle{b, a, Vertex{1.0, -1.0, 0.0}});
+  nonManifold.push_back(Triangle{a, b, Vertex{1.0, 0.0, 1.0}});
+  EXPECT_EQ(getException([&nonManifold](){ nonManifold.standardizeNormals(Vector{0.0, 0.0, 1.0}); }), "Edge belonging to more than two triangles detected.");
+
+  Vertex const middle{1.0, 0.0, 0.0};
+  Vertex const below{1.0, -1.0, 0.0};
+  Mesh tJunction;
+  tJunction.push_back(Triangle{a, b, Vertex{1.0, 1.0, 0.0}});
+  tJunction.push_back(Triangle{a, below, middle});
+  tJunction.push_back(Triangle{middle, below, b});
+  EXPECT_EQ(getException([&tJunction](){ tJunction.standardizeNormals(Vector{0.0, 0.0, 1.0}); }), "Vertex on edge detected.");
+
+  Mesh twoPieces;
+  twoPieces.push_back(Triangle{a, b, Vertex{1.0, 1.0, 0.0}});
+  twoPieces.push_back(Triangle{Vertex{10.0, 0.0, 0.0}, Vertex{12.0, 0.0, 0.0}, Vertex{11.0, 1.0, 0.0}});
+  EXPECT_EQ(getException([&twoPieces](){ twoPieces.standardizeNormals(Vector{0.0, 0.0, 1.0}); }), "Mesh consisting of more than one piece detected.");
+}
+
+TEST(openBezierMesh, CoreEqualsClosed) {
+  Mesh sphere;
+  sphere.makeUnitSphere(21, 15);
+  sphere.standardizeVertices();
+  sphere.standardizeNormals();
+  BezierMesh closed(sphere);
+  auto [half, half2sphere] = makeUpperHalf(sphere);
+  BezierMesh open(half);
+  ASSERT_GT(open.size(), 0u);
+  EXPECT_LT(open.size(), 3u * half.size());
+
+  double maxDifference = 0.0;
+  for(uint32_t i = 0u; i < half.size(); ++i) {
+    auto const indexOpen = open.getBezierIndex(i);
+    if(indexOpen != Mesh::csNoNeighbour) {
+      auto const indexClosed = closed.getBezierIndex(half2sphere[i]);
+      for(uint32_t sub = 0u; sub < 3u; ++sub) {
+        for(uint32_t control = 0u; control < BezierTriangle::csControlPointsSize; ++control) {
+          maxDifference = std::max(maxDifference, (open[indexOpen + sub].getControlPoint(control) - closed[indexClosed + sub].getControlPoint(control)).norm());
+        }
+      }
+    }
+    else { // Nothing to do
+    }
+  }
+  EXPECT_LT(maxDifference, 1e-12);
+}
+
+TEST(openBezierMesh, Intersect) {
+  Mesh sphere;
+  sphere.makeUnitSphere(21, 15);
+  sphere.standardizeVertices();
+  sphere.standardizeNormals();
+  BezierMesh closed(sphere);
+  auto [half, half2sphere] = makeUpperHalf(sphere);
+  BezierMesh open(half);
+  double zMinCore = std::numeric_limits<double>::max();
+  for(uint32_t i = 0u; i < half.size(); ++i) {
+    if(open.getBezierIndex(i) != Mesh::csNoNeighbour) {
+      for(auto const &vertex : half[i]) {
+        zMinCore = std::min(zMinCore, vertex(2));
+      }
+    }
+    else { // Nothing to do
+    }
+  }
+
+  std::mt19937 generator(5u);
+  std::uniform_real_distribution<double> distribution(-1.0, 1.0);
+  uint32_t checkedInside = 0u;
+  for(uint32_t i = 0u; i < 2000u; ++i) {
+    Vector direction{distribution(generator), distribution(generator), distribution(generator)};
+    direction.normalize();
+    Ray const ray(direction * 3.0, -direction);
+    auto const hitOpen = open.intersect(ray);
+    if(hitOpen.mWhat == BezierIntersection::What::cIntersect) {        // Never beyond the rim.
+      EXPECT_GT(hitOpen.mIntersection.mPoint(2), zMinCore - 0.02);
+    }
+    else { // Nothing to do
+    }
+    if(direction(2) > zMinCore + 0.2) {                                // Well inside, must be the same as for the closed mesh.
+      auto const hitClosed = closed.intersect(ray);
+      ASSERT_EQ(hitOpen.mWhat, BezierIntersection::What::cIntersect);
+      ASSERT_EQ(hitClosed.mWhat, BezierIntersection::What::cIntersect);
+      EXPECT_LT((hitOpen.mIntersection.mPoint - hitClosed.mIntersection.mPoint).norm(), 1e-9);
+      ++checkedInside;
+    }
+    else { // Nothing to do
+    }
+  }
+  EXPECT_GT(checkedInside, 100u);
+}
+
+TEST(openBezierMesh, SplitKeepsRim) {
+  Mesh sphere;
+  sphere.makeUnitSphere(7, 3);
+  sphere.standardizeVertices();
+  sphere.standardizeNormals();
+  auto [half, half2sphere] = makeUpperHalf(sphere);
+  BezierMesh open(half);
+  auto refined = open.splitThickBezierTriangles();
+  EXPECT_GT(refined.size(), half.size());
+  refined.standardizeVertices();
+  EXPECT_EQ(getException([&refined](){ refined.standardizeNormals(Vector{0.0, 0.0, 1.0}); }), "");
+  EXPECT_EQ(refined.getBoundaryVertices(), half.getBoundaryVertices());
+  EXPECT_TRUE(isConsistentlyOriented(refined));
 }
 
 
