@@ -177,7 +177,7 @@ There are general error limits for surface approximation using Bézier triangles
 
 ### src/bezierLens.h
 
-`BezierLens` now only contains the function below. The class is constructed with the refractive index and the `BezierMesh` giving its shape.
+`BezierLens` now only contains the function below. The class is constructed with the refractive index and the `BezierMesh` giving its shape, or with two open `BezierMesh` surfaces bounding it, in the order of the light path. In both cases the surface normals must point out of the lens. A ray must enter through the first surface and leave through the last one (the same for a closed lens). If the closest intersection among all surfaces is not on this very next surface, the ray is terminated, as if it would hit the black tube holding the lenses.
 
 #### BezierLens::refract
 

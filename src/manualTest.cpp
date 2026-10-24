@@ -426,6 +426,124 @@ std::cout << (j ? "================\n" : "------------------\n");
   std::cout << '\n';
 }
 
+// Keeps the triangles of a closed mesh having their centroid on the aKeptSide side of aCentre, as an open mesh with normals pointing there.
+Mesh keepHalf(Mesh const &aClosed, Vertex const &aCentre, Vector const &aKeptSide) {
+  Mesh result;
+  for(auto const &triangle : aClosed) {
+    if(((triangle[0u] + triangle[1u] + triangle[2u]) / 3.0 - aCentre).dot(aKeptSide) > 0.0) {
+      result.push_back(triangle);
+    }
+    else { // Nothing to do
+    }
+  }
+  result.standardizeNormals(aKeptSide);
+  return result;
+}
+
+// Like testBezierRefraction, but the lens is bounded by two open surfaces of shapes at the first two locations of testBezierIntersection:
+// the half closer to the origin of the first shape, and the half further away of the second one.
+void testOpenBezierRefraction(char const * const aName, int32_t const aSectors, int32_t const aBelts, Vector const &aSize, double const aDegreesV, double const aDegreesW, int32_t const aCountV, int32_t const aCountW) {
+  std::cout << aName << '\n';
+
+  Mesh ellipsoid;
+  auto func = [](double const aX){
+    auto x2 = aX * aX;
+    return ::sqrt(1.0 - x2) + 0.7 * (::exp(-4.0) - ::exp(-4.0 * x2));
+  };
+  ellipsoid.makeSolidOfRevolution(aSectors, aBelts, func, aSize);
+
+  Mesh bullet;
+  bullet.makeUnitSphere(5, 3);
+  bullet *= 0.05;
+  Mesh intersections;
+  Mesh objects;
+  Mesh raws;
+  Mesh beams;
+
+  std::vector<Ray> rays;
+  rays.reserve(aCountV * aCountW);
+  std::vector<bool> valids;
+  valids.reserve(aCountV * aCountW);
+  for(int32_t v = 0; v < aCountV; ++v) {
+    for(int32_t w = 0; w < aCountW; ++w) {
+      auto sinV = ::sin((v * aDegreesV + 1.0) * cgPi / 180.0);
+      auto sinW = ::sin((w * aDegreesW + 1.0) * cgPi / 180.0);
+      Ray ray({0.0, 0.0, 0.0}, {::sqrt(1.0 - sinV * sinV - sinW * sinW), sinV, sinW});
+      rays.push_back(ray);
+      valids.push_back(true);
+    }
+  }
+  Vector displacement{5.0, 0.0, 0.0};             // Same as in testBezierIntersection
+
+  std::vector<BezierMesh> surfaces;
+  Vertex centre = Vertex::Zero();
+  for(uint32_t i = 0u; i < 2u; ++i) {
+    ellipsoid += displacement;
+    centre += displacement;
+    ellipsoid.standardizeVertices();
+    ellipsoid.standardizeNormals();
+    Vector const keptSide = centre.normalized() * (i == 0u ? -1.0 : 1.0);
+    auto half = keepHalf(ellipsoid, centre, keptSide);
+    std::copy(half.cbegin(), half.cend(), std::back_inserter(raws));
+    surfaces.emplace_back(BezierMesh(half));
+    auto object = surfaces.back().interpolate(5);
+    std::copy(object.cbegin(), object.cend(), std::back_inserter(objects));
+  }
+  BezierLens lens(1.3, std::move(surfaces));
+
+  auto previouses = rays;
+  for(uint32_t j = 0u; j < 2u; ++j) {             // Into the lens through the first surface, then out of it through the second one.
+    for(uint32_t r = 0u; r < rays.size(); ++r) {
+      if(valids[r]) {
+        RefractionResult status;
+        std::tie(rays[r], status) = lens.refract(rays[r], j == 0u ? RefractionResult::cInside : RefractionResult::cOutside);
+        if(status != RefractionResult::cNone) {
+          auto copy = bullet;
+          copy += rays[r].mStart;
+          std::copy(copy.cbegin(), copy.cend(), std::back_inserter(intersections));
+
+          auto beam = visualizeRay(previouses[r], (rays[r].mStart - previouses[r].mStart).norm(), 0.02);
+          std::copy(beam.cbegin(), beam.cend(), std::back_inserter(beams));
+          previouses[r] = rays[r];
+          std::cout << r << (status == RefractionResult::cInside ? " inside\n" : " outside\n");
+        }
+        else {
+          valids[r] = false;
+          std::cout << r << " terminated\n";
+        }
+      }
+      else { // Nothing to do
+      }
+    }
+    std::cout << (j ? "================\n" : "------------------\n");
+  }
+  for(uint32_t r = 0u; r < rays.size(); ++r) {
+    auto beam = visualizeRay(previouses[r], 11.1, 0.02);
+    std::copy(beam.cbegin(), beam.cend(), std::back_inserter(beams));
+  }
+
+  std::string name{"openRefractionObject_"};
+  name += aName;
+  name += ".stl";
+  objects.writeMesh(cgBaseDir + name);
+
+  name ="openRefractionRaw_";
+  name += aName;
+  name += ".stl";
+  raws.writeMesh(cgBaseDir + name);
+
+  name = "openRefractionLocation_";
+  name += aName;
+  name += ".stl";
+  intersections.writeMesh(cgBaseDir + name);
+
+  name = "openRefractionRay_";
+  name += aName;
+  name += ".stl";
+  beams.writeMesh(cgBaseDir + name);
+  std::cout << '\n';
+}
+
 void measureApproximation(uint32_t const aSplitSteps, int32_t const aSectors, int32_t const aBelts, Vector const &aSize, int32_t const aDivisor) {
   Mesh ellipsoid;
   ellipsoid.makeEllipsoid(aSectors, aBelts, aSize);
@@ -510,6 +628,7 @@ int main(int argc, char **argv) {
   testBezierSplitTall("15x5", 15, 5, ellipsoidAxes, 1);*/
 
   testBezierRefraction("21x15", 21, 15, ellipsoidAxes, 3.0, 3.0, 4, 4);
+  testOpenBezierRefraction("21x15", 21, 15, ellipsoidAxes, 3.0, 3.0, 4, 4);
   visualizeFollowers("follow");
 
 /*  measureApproximation(0, 4, 1, ellipsoidAxes, 1);     // SplitSteps: 0 Sectors:  4 Belts:  1 Size: 1 4 2 Divisor: 1 error:      1.2555894

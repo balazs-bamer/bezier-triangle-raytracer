@@ -4,8 +4,9 @@
 std::pair<Ray, RefractionResult> BezierLens::refract(Ray const &aRay, RefractionResult const aExpected) const {
   Ray result;
   RefractionResult statusLater;
-  auto const intersect = mMesh.intersect(aRay);
-  if(intersect.mWhat == BezierIntersection::What::cIntersect) {
+  auto const [intersect, indexSurface] = getClosestIntersection(aRay);
+  uint32_t const indexNext = (aExpected == RefractionResult::cInside ? 0u : mSurfaces.size() - 1u);
+  if(intersect.mWhat == BezierIntersection::What::cIntersect && indexSurface == indexNext) {
     statusLater = (intersect.mIntersection.mCosIncidence < 0.0 ? RefractionResult::cInside : RefractionResult::cOutside);
     result.mStart = intersect.mIntersection.mPoint;
     auto const effectiveRefractiveFactor = (statusLater == RefractionResult::cInside ? 1.0 / mRefractiveIndex : mRefractiveIndex);
@@ -27,9 +28,25 @@ std::pair<Ray, RefractionResult> BezierLens::refract(Ray const &aRay, Refraction
     }
   }
   else {
-    statusLater = RefractionResult::cNone;
+    statusLater = RefractionResult::cNone;          // Missed the very next surface, so it hits the black tube holding the lenses.
   }
   statusLater = (statusLater == aExpected ? statusLater : RefractionResult::cNone);
   return std::make_pair(result, statusLater);
 }
 
+std::pair<BezierIntersection, uint32_t> BezierLens::getClosestIntersection(Ray const &aRay) const {
+  BezierIntersection result;
+  result.mIntersection.mDistance = std::numeric_limits<double>::max();
+  result.mWhat = BezierIntersection::What::cNone;
+  uint32_t indexResult = 0u;
+  for(uint32_t indexSurface = 0u; indexSurface < mSurfaces.size(); ++indexSurface) {
+    auto const candidate = mSurfaces[indexSurface].intersect(aRay);
+    if(candidate.mWhat == BezierIntersection::What::cIntersect && candidate.mIntersection.mDistance < result.mIntersection.mDistance) {
+      result = candidate;
+      indexResult = indexSurface;
+    }
+    else { // Nothing to do
+    }
+  }
+  return std::make_pair(result, indexResult);
+}
