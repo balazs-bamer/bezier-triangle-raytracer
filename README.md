@@ -4,7 +4,7 @@
 
 The aim of this project is to simulate image rendering of arbitrary-shaped "lenses" described by triangle meshes using Bézier triangle interpolation. It will be possible to simulate free-form lenses, and of course spherical lenses as well. (Of course, spherical lenses can be simulated much more efficiently.) This project is just for personal learning, so I omit the investigation of existing results.
 
-This work is divided into 4 parts:
+This work is divided into 2 parts:
 1. [C++ utilities and preprocessor](#1001). These parts check the input and produce the Bézier mesh appropriate to implement raytracing.
 2. [A single ray tracing implementation in C++](#1002). I use it actually to develop all geometry and raytracing algorithms.
 

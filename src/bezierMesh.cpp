@@ -50,8 +50,6 @@ void BezierMesh::setMissingFields(Mesh const &aMesh, MissingFieldsMethod aMissin
   }
 }
 
-#include<iostream> // TODO remove
-
 Mesh BezierMesh::interpolate(int32_t const aDivisor) const {
   Mesh result;
   Triangle barycentric{Vertex{{1.0, 0.0, 0.0}}, Vertex{{0.0, 1.0, 0.0}}, Vertex{{0.0, 0.0, 1.0}}};

@@ -496,9 +496,9 @@ void testCustomStl(char * const aName, int32_t const aDivisor) {  // TODO this d
 int main(int argc, char **argv) {
   Vector ellipsoidAxes(1.0, 4.0, 2.0);
 
-  testUniformHemisphere(6u);
+/*  testUniformHemisphere(6u);
 
-/*  testDequeDivisor("dequeDivisor", 7, 7, 3.0, 3);
+  testDequeDivisor("dequeDivisor", 7, 7, 3.0, 3);
 
   testVectorMax("vectorMax", 4, 2, 13.0, 11.0);
   testVectorMax("vectorIdentity", 4, 1, 1.0, 11.0);
@@ -509,8 +509,8 @@ int main(int argc, char **argv) {
   testBezierSplitTall("7x3", 7, 3, ellipsoidAxes, 1);
   testBezierSplitTall("15x5", 15, 5, ellipsoidAxes, 1);*/
 
-//  testBezierRefraction("21x15", 21, 15, ellipsoidAxes, 3.0, 3.0, 4, 4);
-//  visualizeFollowers("follow");
+  testBezierRefraction("21x15", 21, 15, ellipsoidAxes, 3.0, 3.0, 4, 4);
+  visualizeFollowers("follow");
 
 /*  measureApproximation(0, 4, 1, ellipsoidAxes, 1);     // SplitSteps: 0 Sectors:  4 Belts:  1 Size: 1 4 2 Divisor: 1 error:      1.2555894
   measureApproximation(0, 7, 3, ellipsoidAxes, 3);       // SplitSteps: 0 Sectors:  7 Belts:  3 Size: 1 4 2 Divisor: 3 error:   0.0022721614
