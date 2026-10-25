@@ -627,18 +627,17 @@ int main(int argc, char **argv) {
   testBezierSplitTall("7x3", 7, 3, ellipsoidAxes, 1);
   testBezierSplitTall("15x5", 15, 5, ellipsoidAxes, 1);*/
 
-  testBezierRefraction("21x15", 21, 15, ellipsoidAxes, 3.0, 3.0, 4, 4);
+/*  testBezierRefraction("21x15", 21, 15, ellipsoidAxes, 3.0, 3.0, 4, 4);
   testOpenBezierRefraction("47x31", 47, 31, ellipsoidAxes, 3.0, 3.0, 4, 4);
-  visualizeFollowers("follow");
+  visualizeFollowers("follow");*/
 
-/*  measureApproximation(0, 4, 1, ellipsoidAxes, 1);     // SplitSteps: 0 Sectors:  4 Belts:  1 Size: 1 4 2 Divisor: 1 error:      0.0183355
-  measureApproximation(0, 7, 3, ellipsoidAxes, 3);       // SplitSteps: 0 Sectors:  7 Belts:  3 Size: 1 4 2 Divisor: 3 error:  0.00055468142
-  measureApproximation(0, 15, 5, ellipsoidAxes, 3);      // SplitSteps: 0 Sectors: 15 Belts:  5 Size: 1 4 2 Divisor: 3 error:  1.3203548e-05
-  measureApproximation(1, 7, 3, ellipsoidAxes, 3);       // SplitSteps: 1 Sectors:  7 Belts:  3 Size: 1 4 2 Divisor: 3 error:  0.00073295409
-  measureApproximation(1, 15, 5, ellipsoidAxes, 3);      // SplitSteps: 1 Sectors: 15 Belts:  5 Size: 1 4 2 Divisor: 3 error:  4.8170479e-05
-  measureApproximation(2, 7, 3, ellipsoidAxes, 3);       // SplitSteps: 2 Sectors:  7 Belts:  3 Size: 1 4 2 Divisor: 3 error:   0.0014126713
-  measureApproximation(2, 15, 5, ellipsoidAxes, 3);      // SplitSteps: 2 Sectors: 15 Belts:  5 Size: 1 4 2 Divisor: 3 error:  4.8170479e-05
-*/
+  measureApproximation(0, 15, 5, ellipsoidAxes, 3);
+  measureApproximation(0, 47, 17, ellipsoidAxes, 3);
+  measureApproximation(1, 15, 5, ellipsoidAxes, 3);
+  measureApproximation(1, 47, 17, ellipsoidAxes, 3);
+  measureApproximation(2, 15, 5, ellipsoidAxes, 3);
+  measureApproximation(2, 47, 17, ellipsoidAxes, 3);
+
 
   if(argc > 1) {
     testCustomStl(argv[1], 4);
