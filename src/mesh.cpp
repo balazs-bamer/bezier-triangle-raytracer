@@ -519,8 +519,8 @@ void Mesh::makeSolidOfRevolution(int32_t const aSectors, int32_t const aBelts, s
   double beltAngleMiddle = beltAngle;
   double beltAngleDown = 2.0 * beltAngle;
   double beltRadiusUp = 0.0;
-  double beltRadiusMiddle = aSize(0) * aEnvelope(std::cos(beltAngleMiddle));
-  double beltRadiusDown = aSize(0) * aEnvelope(std::cos(beltAngleDown));
+  double beltRadiusMiddle = aEnvelope(std::cos(beltAngleMiddle));       // Belt radii are without size, which is applied to the coordinates.
+  double beltRadiusDown = aEnvelope(std::cos(beltAngleDown));
   double beltZup = aSize(2);
   double beltZmiddle = aSize(2) * std::cos(beltAngleMiddle);
   double beltZdown = aSize(2) * std::cos(beltAngleDown);
@@ -529,9 +529,9 @@ void Mesh::makeSolidOfRevolution(int32_t const aSectors, int32_t const aBelts, s
     double sectorAngleMiddle1 = bias + 0.0;
     double sectorAngleMiddle2 = bias + sectorAngleFull;
     for(int32_t sector = 0; sector < aSectors; ++sector) {
-      Vertex corner1(beltRadiusUp * std::sin(sectorAngleUpDown), aSize(1) * beltRadiusUp * std::cos(sectorAngleUpDown), beltZup);
-      Vertex corner2(beltRadiusMiddle * std::sin(sectorAngleMiddle1), aSize(1) * beltRadiusMiddle * std::cos(sectorAngleMiddle1), beltZmiddle);
-      Vertex corner3(beltRadiusMiddle * std::sin(sectorAngleMiddle2), aSize(1) * beltRadiusMiddle * std::cos(sectorAngleMiddle2), beltZmiddle);
+      Vertex corner1(aSize(0) * beltRadiusUp * std::sin(sectorAngleUpDown), aSize(1) * beltRadiusUp * std::cos(sectorAngleUpDown), beltZup);
+      Vertex corner2(aSize(0) * beltRadiusMiddle * std::sin(sectorAngleMiddle1), aSize(1) * beltRadiusMiddle * std::cos(sectorAngleMiddle1), beltZmiddle);
+      Vertex corner3(aSize(0) * beltRadiusMiddle * std::sin(sectorAngleMiddle2), aSize(1) * beltRadiusMiddle * std::cos(sectorAngleMiddle2), beltZmiddle);
       mMesh.push_back({corner1, corner2, corner3});
       corner1 = {aSize(0) * beltRadiusDown * std::sin(sectorAngleUpDown), aSize(1) * beltRadiusDown * std::cos(sectorAngleUpDown), beltZdown};
       mMesh.push_back({corner2, corner3, corner1});
@@ -544,7 +544,7 @@ void Mesh::makeSolidOfRevolution(int32_t const aSectors, int32_t const aBelts, s
     beltAngleDown += beltAngle;
     beltRadiusUp = beltRadiusMiddle;
     beltRadiusMiddle = beltRadiusDown;
-    beltRadiusDown = aSize(0) * aEnvelope(std::cos(beltAngleDown));
+    beltRadiusDown = aEnvelope(std::cos(beltAngleDown));
     beltZup = beltZmiddle;
     beltZmiddle = beltZdown;
     beltZdown = aSize(2) * std::cos(beltAngleDown);

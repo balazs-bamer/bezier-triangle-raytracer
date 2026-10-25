@@ -471,6 +471,21 @@ TEST(openMesh, ClosedSphere) {
   EXPECT_TRUE(isConsistentlyOriented(mesh));
 }
 
+TEST(mesh, SolidOfRevolutionSize) {
+  for(Vector const size : {Vector{3.0, 1.0, 2.0}, Vector{10.0, 40.0, 20.0}, Vector{0.001, 0.001, 0.001}}) {
+    Mesh ellipsoid;
+    ellipsoid.makeEllipsoid(7, 3, size);
+    for(auto const &triangle : ellipsoid) {
+      for(auto const &vertex : triangle) {
+        EXPECT_LT(::abs((vertex.array() / size.array()).matrix().squaredNorm() - 1.0), 1e-12);
+      }
+    }
+    ellipsoid.standardizeVertices();
+    EXPECT_EQ(getException([&ellipsoid](){ ellipsoid.standardizeNormals(); }), "");
+    EXPECT_TRUE(ellipsoid.isClosed());
+  }
+}
+
 TEST(openMesh, Errors) {
   auto grid = makeGrid(3, 0.0);
   EXPECT_EQ(getException([&grid](){ grid.standardizeNormals(); }), "Vertex on edge detected.");
