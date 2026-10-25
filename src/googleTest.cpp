@@ -497,32 +497,62 @@ TEST(openMesh, Errors) {
   EXPECT_EQ(getException([&twoPieces](){ twoPieces.standardizeNormals(Vector{0.0, 0.0, 1.0}); }), "Mesh consisting of more than one piece detected.");
 }
 
-TEST(openBezierMesh, CoreEqualsClosed) {
+// Surface normal of a Bezier triangle by central differences, also outside the triangle.
+Vector getBezierNormal(BezierTriangle const &aBezier, Vertex const &aBary) {
+  double const h = 1e-6;
+  Vector const du = (aBezier.interpolate(aBary(0) + h, aBary(1), aBary(2) - h) - aBezier.interpolate(aBary(0) - h, aBary(1), aBary(2) + h)) / (2.0 * h);
+  Vector const dv = (aBezier.interpolate(aBary(0), aBary(1) + h, aBary(2) - h) - aBezier.interpolate(aBary(0), aBary(1) - h, aBary(2) + h)) / (2.0 * h);
+  return du.cross(dv).normalized();
+}
+
+// Largest angle in degrees between the normals of neighbouring Bezier triangles along their common sides,
+// first inside the original triangles, second across the original sides.
+std::pair<double, double> getMaxNormalJumps(BezierMesh const &aBezier) {
+  double inside = 0.0;
+  double across = 0.0;
+  for(uint32_t i = 0u; i < aBezier.size(); ++i) {
+    auto const &bezier = aBezier[i];
+    auto const neighbours = bezier.getNeighbours();
+    for(double s = 0.05; s < 1.0; s += 0.1) {
+      // The same point in own and neighbour barycentric coordinates: the original side is reversed in the neighbour,
+      // (V1, centre) is (V0, centre) in the next triangle, and (V0, centre) is (V1, centre) in the previous one.
+      std::array<std::pair<Vertex, Vertex>, 3u> const sides = {{ {{1.0 - s, s, 0.0}, {s, 1.0 - s, 0.0}},
+                                                                 {{0.0, 1.0 - s, s}, {1.0 - s, 0.0, s}},
+                                                                 {{1.0 - s, 0.0, s}, {0.0, 1.0 - s, s}} }};
+      for(uint32_t side = 0u; side < 3u; ++side) {
+        if(neighbours[side] != Mesh::csNoNeighbour) {
+          double const cosine = getBezierNormal(bezier, sides[side].first).dot(getBezierNormal(aBezier[neighbours[side]], sides[side].second));
+          double &worst = (side == 0u ? across : inside);
+          worst = std::max(worst, ::acos(std::min(1.0, cosine)) * 180.0 / cgPi);
+        }
+        else { // Nothing to do
+        }
+      }
+    }
+  }
+  return std::make_pair(inside, across);
+}
+
+TEST(openBezierMesh, C1) {
+  auto grid = makeGrid(8, 0.3);                                         // Open meshes are height fields along their average normal, exactly C1.
+  grid.standardizeVertices();
+  grid.standardizeNormals(Vector{0.0, 0.0, 1.0});
+  auto const [insideGrid, acrossGrid] = getMaxNormalJumps(BezierMesh(grid));
+  EXPECT_LT(insideGrid, 1e-4);
+  EXPECT_LT(acrossGrid, 1e-4);
+
   Mesh sphere;
   sphere.makeUnitSphere(21, 15);
   sphere.standardizeVertices();
   sphere.standardizeNormals();
-  BezierMesh closed(sphere);
-  auto [half, half2sphere] = makeUpperHalf(sphere);
-  BezierMesh open(half);
-  ASSERT_GT(open.size(), 0u);
-  EXPECT_LT(open.size(), 3u * half.size());
+  auto const [half, half2sphere] = makeUpperHalf(sphere);
+  auto const [insideHalf, acrossHalf] = getMaxNormalJumps(BezierMesh(half));
+  EXPECT_LT(insideHalf, 1e-4);
+  EXPECT_LT(acrossHalf, 1e-4);
 
-  double maxDifference = 0.0;
-  for(uint32_t i = 0u; i < half.size(); ++i) {
-    auto const indexOpen = open.getBezierIndex(i);
-    if(indexOpen != Mesh::csNoNeighbour) {
-      auto const indexClosed = closed.getBezierIndex(half2sphere[i]);
-      for(uint32_t sub = 0u; sub < 3u; ++sub) {
-        for(uint32_t control = 0u; control < BezierTriangle::csControlPointsSize; ++control) {
-          maxDifference = std::max(maxDifference, (open[indexOpen + sub].getControlPoint(control) - closed[indexClosed + sub].getControlPoint(control)).norm());
-        }
-      }
-    }
-    else { // Nothing to do
-    }
-  }
-  EXPECT_LT(maxDifference, 1e-12);
+  auto const [insideClosed, acrossClosed] = getMaxNormalJumps(BezierMesh(sphere)); // Closed meshes are C1 inside the original triangles,
+  EXPECT_LT(insideClosed, 1e-4);                                                    // and only approximately across their sides.
+  EXPECT_LT(acrossClosed, 0.2);
 }
 
 TEST(openBezierMesh, Intersect) {
@@ -530,7 +560,6 @@ TEST(openBezierMesh, Intersect) {
   sphere.makeUnitSphere(21, 15);
   sphere.standardizeVertices();
   sphere.standardizeNormals();
-  BezierMesh closed(sphere);
   auto [half, half2sphere] = makeUpperHalf(sphere);
   BezierMesh open(half);
   double zMinCore = std::numeric_limits<double>::max();
@@ -557,11 +586,9 @@ TEST(openBezierMesh, Intersect) {
     }
     else { // Nothing to do
     }
-    if(direction(2) > zMinCore + 0.2) {                                // Well inside, must be the same as for the closed mesh.
-      auto const hitClosed = closed.intersect(ray);
+    if(direction(2) > zMinCore + 0.2) {                                // Well inside, must be on the unit sphere.
       ASSERT_EQ(hitOpen.mWhat, BezierIntersection::What::cIntersect);
-      ASSERT_EQ(hitClosed.mWhat, BezierIntersection::What::cIntersect);
-      EXPECT_LT((hitOpen.mIntersection.mPoint - hitClosed.mIntersection.mPoint).norm(), 1e-9);
+      EXPECT_LT(::abs(hitOpen.mIntersection.mPoint.norm() - 1.0), 0.005);
       ++checkedInside;
     }
     else { // Nothing to do

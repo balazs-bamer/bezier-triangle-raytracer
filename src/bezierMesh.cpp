@@ -19,6 +19,15 @@ BezierMesh::BezierMesh(Mesh const &aMesh, std::vector<bool> const &aMask)
   mMesh.reserve(mBuiltFaces.size() * 3u);
   std::vector<std::pair<uint32_t, Plane>> rimPlanes;               // Bezier index and plane between the original neighbours
   auto const &vertex2averageNormals = aMesh.getVertex2averageNormals();
+  Vector liftOpen = Vector::Zero();                                // For an open mesh the area weighted average normal is the common lift direction,
+  if(!aMesh.isClosed()) {                                          // making the Bezier surface a height field, which is exactly C1. See BezierTriangle.
+    for(auto const &triangle : aMesh) {
+      liftOpen += util::getNormal(triangle);
+    }
+    liftOpen.normalize();
+  }
+  else { // Nothing to do
+  }
   for(auto const indexFace : mBuiltFaces) {
     auto const &neigh = mOriginalNeighbours[indexFace];
     auto const &originalTriangle = aMesh[indexFace];
@@ -30,8 +39,9 @@ BezierMesh::BezierMesh(Mesh const &aMesh, std::vector<bool> const &aMask)
       auto const &averageNormal0 = vertex2averageNormals.at(originalCommonVertex0);
       auto const &averageNormal1 = vertex2averageNormals.at(originalCommonVertex1);
                                                                                  // Neighbour of edge (index, index + 1)
-      Plane planeBetweenOriginalNeighbours = Plane::createFrom1vector2points(normal + util::getNormal(aMesh[neigh.mFellowTriangles[indexVertex]]).normalized(),
-                                                                             originalCommonVertex0, originalCommonVertex1);
+      Vector const betweenDirection = normal + util::getNormal(aMesh[neigh.mFellowTriangles[indexVertex]]).normalized();
+      Plane planeBetweenOriginalNeighbours = Plane::createFrom1vector2points(betweenDirection, originalCommonVertex0, originalCommonVertex1);
+      Vector const liftDirection = (aMesh.isClosed() ? Vector::Zero() : liftOpen);  // A closed mesh has no common direction, so perpendicular.
       auto currentBase = mFace2bezierBase[indexFace];
       auto const neighbourBase = mFace2bezierBase[neigh.mFellowTriangles[indexVertex]];
       std::array<uint32_t, 3u> newNeighbourIndices({ (neighbourBase == Mesh::csNoNeighbour ? Mesh::csNoNeighbour : neighbourBase + neigh.mFellowCommonSideStarts[indexVertex]),
@@ -46,12 +56,13 @@ BezierMesh::BezierMesh(Mesh const &aMesh, std::vector<bool> const &aMask)
       }
       mMesh.emplace_back(BezierTriangle(originalCommonVertex0, originalCommonVertex1, originalCentroid,
                                                averageNormal0, averageNormal1, planeBetweenOriginalNeighbours,
-                                               newNeighbourIndices));
+                                               liftDirection, newNeighbourIndices));
     }
   }
   setMissingFields(aMesh, &BezierTriangle::setMissingFields1);
   setMissingFields(aMesh, &BezierTriangle::setMissingFields2);
   setMissingFields(aMesh, &BezierTriangle::setMissingFields3);
+  setMissingFields(aMesh, &BezierTriangle::setMissingFields4);
 
   mBezier2rim.assign(mMesh.size(), Mesh::csNoNeighbour);
   for(auto const &[indexBezier, rimPlane] : rimPlanes) {           // Now the control point above the original centroid is known.
@@ -253,8 +264,7 @@ void BezierMesh::append4split(Mesh &aResult, Triangle const &aOriginalTriangle, 
 
 Vertex BezierMesh::interpolate(uint32_t const aIndex, double const aBary0, double const aBary1, double const aBary2) const {
   auto const &triangle = mMesh[aIndex];
-  return triangle.interpolate(aBary0, aBary1, aBary2) * csSplitBezierInterpolateFactor +
-         triangle.interpolateLinear(aBary0, aBary1, aBary2) * (1.0 - csSplitBezierInterpolateFactor);
+  return triangle.interpolate(aBary0, aBary1, aBary2);
 }
 
 BezierIntersection BezierMesh::intersect(Ray const &aRay) const {

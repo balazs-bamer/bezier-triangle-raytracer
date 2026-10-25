@@ -81,8 +81,15 @@ Here resides the `BézierTriangle` class, which is capable of
 * Ray and Bézier triangle intersection with barycentric output.
 * Normal vector calculation on the barycentric triangle using barycentric coordinates.
 
-The Bézier triangle will contain all the original triangle vertices. Control point calculations follow [[1]](#1), with the details figured out by me, where the paper was not specific. There are 3 `constexpr` parameters influencing control point placement, which were empirically estimated TODO see where
-TODO perhaps write control point calculation in detail.
+The Bézier triangle will contain all the original triangle vertices. Control point calculations follow the Clough-Tocher split [[1]](#1) and its classic C1 conditions, in 4 passes over the mesh, because each pass needs the results of the previous one in the neighbouring triangles:
+1. The constructor puts the control points of the original side at its thirds, lifted onto the tangent planes of the vertices given by the vertex normals. The triangle on the other side of the original side computes exactly the same.
+2. Inside the original triangle, each control point next to a vertex is the average of its three neighbours around that vertex. Then the middle control point makes the derivative across the original side at its middle lie in the tangent plane there. This plane is perpendicular to the plane between the original neighbours, and contains the tangent of the common boundary curve, so it is the same for the triangle on the other side.
+3. Each control point next to the centroid on a split side is the average of its three neighbours there.
+4. The control point above the centroid is the average of its three neighbours.
+
+The average rules make the surface exactly C1 inside the original triangle. Across the original sides, the common tangent planes at the vertices and at the middles make it C1 there, and approximately C1 in between. The control points of the original side are lifted from the flat original triangle along a direction given by `BezierMesh`:
+* For an open mesh it is the average normal of the mesh, so the surface is a height field above a plane perpendicular to it. Such a surface is exactly C1 everywhere. This suits mirror-like surfaces, which have no steep parts relative to this direction.
+* A closed mesh has no common direction, so these points are lifted perpendicularly to their target planes. The largest normal angle across the original sides was 0.09 degrees on a 21x15 unit sphere, but strongly concave and coarse meshes can still fold, like the waist of the bulged shape in the tests.
 
 The class contains some precomputed values useful for intersection calculations, like maximum distances from the underlying triangle inside and outside.
 
@@ -167,7 +174,7 @@ For open meshes, an intersection leading beyond the rim counts as no intersectio
 
 #### Ellipse approximation test
 
-I've chosen an ellipsoid with principal semi-axes 1.0, 2.0 and 4.0 was used for these tests. I've chosen this shape because it somewhat resembles a lens, has curvatures with reasonably high variety in radii. I've measured the error of the interpolated mesh (`aDivisor` == 3) vertices relative to the ellipsoid surface point in the very same direction (where the line containing the centre and the vertex intersects the ellipsoid). Average quadratic relative errors were between **1.9e-5** and **2.2e-3** for the same tuned parameters.
+I've chosen an ellipsoid with principal semi-axes 1.0, 2.0 and 4.0 was used for these tests. I've chosen this shape because it somewhat resembles a lens, has curvatures with reasonably high variety in radii. I've measured the error of the interpolated mesh (`aDivisor` == 3) vertices relative to the ellipsoid surface point in the very same direction (where the line containing the centre and the vertex intersects the ellipsoid). Average quadratic relative errors were between **1.3e-5** and **1.4e-3** (see the results in `manualTest.cpp`). With my earlier, empirically tuned control point placement they were between 1.9e-5 and 2.2e-3, and the coarsest 4x1 mesh improved from 1.26 to 0.018.
 I find these results good enough to start with. Should the error be too big for some application, a more specialised parameter tuning is possible, or I might use more sophisticated preprocessing algorithms.
 There are general error limits for surface approximation using Bézier triangles, like in [[5]](#5). Here, for any triangle where the parametric function describing the surface to approximate is known and its second partial derivatives exist, an upper limit for the error can be expressed.
 
@@ -189,7 +196,7 @@ This is a simple implementation using relative indices of refraction according t
 
 <a id="1005">In</a> theory, my algorithms can handle concave meshes, and the `Mesh` class even meshes with holes in it (with hole walls covered by triangles, so holes in a topological sense). In practice, I've tried some concave bodies, and the ones with small dihedral angles (< 90-120 degrees, depending on the situation) cause numeric errors, most probably because of the extreme variation between the sizes of neighbouring triangles and sharp edges.
 
-Both intersection algorithms miss more and more mesh intersections as the angle of incidence grows, because they start from the intersection with the underlying planar triangle and follow at most one neighbour. The limit depends on the mesh density. On a coarse 7x3 unit sphere about 90% of the intersections are found at 60 degrees and 60% at 70 degrees. On a finer 21x15 unit sphere practically all are found up to 75 degrees, 85% at 80 degrees and 45% at 86 degrees. This could be fixed with some shallow recursion, but I leave it yet.
+Both intersection algorithms miss more and more mesh intersections as the angle of incidence grows, because they start from the intersection with the underlying planar triangle and follow at most one neighbour. The limit depends on the mesh density. On a coarse 7x3 unit sphere about 93% of the intersections are found at 60 degrees and 65% at 70 degrees. On a finer 21x15 unit sphere practically all are found up to 70 degrees, and 94% at 80 degrees. This could be fixed with some shallow recursion, but I leave it yet.
 
 Analysis of the old intersection algorithm lacks exact mathematical proof. The new one is based on Kajiya's algorithm, which is mathematically well founded,
 

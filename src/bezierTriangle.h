@@ -63,9 +63,6 @@ private:
   static constexpr uint32_t csPowerIndex12 = 8u;
   static constexpr uint32_t csPowerIndex03 = 9u;
 
-  static constexpr double    csProportionControlOnOriginalSide           = 0.291;
-  static constexpr double    csProportionControlOnOriginalVertexCentroid = 0.304;
-  static constexpr double    csProportionControlOnOriginalMedian         = 0.2;
   static constexpr double    csHeightSafetyFactor                        = 1.33333333;
   static constexpr double    csOneThird                                  = 1.0 / 3.0;
   static constexpr uint32_t  csRootSearchIterations4bezierEvaluations    = 4u;
@@ -94,17 +91,27 @@ private:
   double                   mHeightOutside;           // this is > 0
   Vector                   mBezierDerivativeDirectionVectorA; // We calculate directional derivatives in two perpendicular directions
   Vector                   mBezierDerivativeDirectionVectorB; // and their cross product will yield the Bezier surface normal
+  Vector                   mLiftDirection;           // Control points of the original side are lifted along this from the flat original triangle, see the constructor.
+                                                     // Zero means lifting perpendicular to the target plane.
 
 public:
   // Vertices in argument are in order such that the normal points to the desired direction.
   // Neighbour i is neighbour of edge (i, i + 1)
+  // The control points belonging to the original side (210, 120 and 111) are points of the flat original triangle lifted along
+  // aLiftDirection, or perpendicularly for a zero one. It must be the same for both triangles of the original side. For a common
+  // direction in the whole mesh, the surface is a height field above a plane perpendicular to it, and exactly C1. Otherwise it is
+  // C1 inside the original triangle, and across the original sides at the vertices and the middle of the sides, and approximately
+  // between them. aPlaneBetweenOriginalNeighbours contains the original side and gives the surface normal in its middle, so it must
+  // be the same for both triangles of the original side, too.
   BezierTriangle(Vertex const &aOriginalCommonVertex0, Vertex const &aOriginalCommonVertex1, Vertex const &aOriginalCentroid,
                  Vector const &aAverageNormal0, Vector const &aAverageNormal1, Plane const &aPlaneBetweenOriginalNeighbours,
-                 std::array<uint32_t, 3u> const &aNeighbourIndices);
+                 Vector const &aLiftDirection, std::array<uint32_t, 3u> const &aNeighbourIndices);
 
+  // These must be called in this order for all triangles of the mesh, because each needs the results of the previous one in the neighbours.
   void setMissingFields1(Vertex const &aOriginalCentroid, BezierTriangle const &aTriangleNext, BezierTriangle const &aTrianglePrevious);
-  void setMissingFields2(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &);
-  void setMissingFields3(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &aTrianglePrevious);
+  void setMissingFields2(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &aTrianglePrevious);
+  void setMissingFields3(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &);
+  void setMissingFields4(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &aTrianglePrevious);
 
   Vertex getControlPoint(uint32_t const aI) const { return mControlPoints[aI]; }
   std::array<uint32_t, 3u> getNeighbours() const { return mNeighbours; }           // TODO remove
@@ -125,6 +132,7 @@ public:
 
 private:
   Vector getNormal(Vector const &aBarycentric) const;
+  Vertex liftOnto(Plane const &aPlane, Vertex const &aPoint) const;
   void computePowerCoefficients();
   // Sets aResult.mWhat using mNeighbourDividerPlanes, and mCosIncidence for an own intersection. Needs mPoint and mNormal already set.
   void classifyIntersection(BezierIntersection &aResult, Ray const &aRay) const;

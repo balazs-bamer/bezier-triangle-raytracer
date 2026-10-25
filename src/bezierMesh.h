@@ -11,8 +11,6 @@ class BezierMesh final {
 private:
   static constexpr std::array<double, 3u> csSampleRatiosOriginalSide = { 0.25, 0.5, 0.75 };
   static constexpr double                 csBezierHeightPerPerimeterLimit = 0.03;
-  static constexpr double                 csSplitBezierInterpolateFactor  = 0.7;   // For triangle splitting, new vertex is computed as
-                                                                                   // barycentricSplit * (1.0 - csSBIF) + interpolate(barycentricSplit) * csSBIF
   static constexpr double                 csRimBarycentricBand            = 1.0;   // See intersectBeyondRim
   static constexpr double                 csMinBarycentricOfHit           = -0.2;  // Newton may converge to the polynomial continuation of the patch, which
                                                                                    // BezierTriangle::classifyIntersection lets through when it is outside

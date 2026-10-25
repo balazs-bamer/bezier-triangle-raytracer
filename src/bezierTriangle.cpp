@@ -3,63 +3,62 @@
 
 BezierTriangle::BezierTriangle(Vertex const &aOriginalCommonVertex0, Vertex const &aOriginalCommonVertex1, Vertex const &aOriginalCentroid,
                                       Vector const &aAverageNormal0, Vector const &aAverageNormal1, Plane const &aPlaneBetweenOriginalNeighbours,
-                                      std::array<uint32_t, 3u> const &aNeighbourIndices)
-  : mNeighbours(aNeighbourIndices) {
+                                      Vector const &aLiftDirection, std::array<uint32_t, 3u> const &aNeighbourIndices)
+  : mNeighbours(aNeighbourIndices)
+  , mLiftDirection(aLiftDirection) {
   mControlPoints[csControlIndexOriginalVertex0] = aOriginalCommonVertex0;
   mControlPoints[csControlIndexOriginalVertex1] = aOriginalCommonVertex1;
 
   Plane const commonPlaneVertex0{aAverageNormal0, aOriginalCommonVertex0.dot(aAverageNormal0) };
   Plane const commonPlaneVertex1{aAverageNormal1, aOriginalCommonVertex1.dot(aAverageNormal1) };
-  Plane const perpendicularToOriginalSideInProportion0 = Plane::createFrom1proportion2points(csProportionControlOnOriginalSide, aOriginalCommonVertex0, aOriginalCommonVertex1);
-  Plane const perpendicularToOriginalSideInProportion1 = Plane::createFrom1proportion2points(csProportionControlOnOriginalSide, aOriginalCommonVertex1, aOriginalCommonVertex0);
 
-  // For each control point obtained by planes intersection, the first plane is the critical one ensuring Bezier surface C1 continuity among triangles.
-  mControlPoints[csControlIndexOnOriginalSide0] = Plane::intersect(commonPlaneVertex0, aPlaneBetweenOriginalNeighbours, perpendicularToOriginalSideInProportion0);
-  mControlPoints[csControlIndexOnOriginalSide1] = Plane::intersect(commonPlaneVertex1, aPlaneBetweenOriginalNeighbours, perpendicularToOriginalSideInProportion1);
+  // The thirds of the original side lifted onto the tangent planes of the vertices. The triangle on the other side computes exactly the same.
+  mControlPoints[csControlIndexOnOriginalSide0] = liftOnto(commonPlaneVertex0, aOriginalCommonVertex0 + (aOriginalCommonVertex1 - aOriginalCommonVertex0) * csOneThird);
+  mControlPoints[csControlIndexOnOriginalSide1] = liftOnto(commonPlaneVertex1, aOriginalCommonVertex1 + (aOriginalCommonVertex0 - aOriginalCommonVertex1) * csOneThird);
 
-  Vector const originalNormal = util::getNormal(aOriginalCommonVertex0, aOriginalCommonVertex1, aOriginalCentroid);
-  Plane const parallelToOriginalNormalBetweenSplitTriangles0 = Plane::createFrom1vector2points(originalNormal, aOriginalCommonVertex0, aOriginalCentroid);
-  Plane const parallelToOriginalNormalBetweenSplitTriangles1 = Plane::createFrom1vector2points(originalNormal, aOriginalCommonVertex1, aOriginalCentroid);
-  Plane const perpendicularToSplitBetweenTrianglesInProportion0 = Plane::createFrom1proportion2points(csProportionControlOnOriginalVertexCentroid, aOriginalCommonVertex0, aOriginalCentroid);
-  Plane const perpendicularToSplitBetweenTrianglesInProportion1 = Plane::createFrom1proportion2points(csProportionControlOnOriginalVertexCentroid, aOriginalCommonVertex1, aOriginalCentroid);
+  mNeighbourDividerPlanes[0u] = aPlaneBetweenOriginalNeighbours;   // Oriented in setMissingFields1, when the middle control point is known.
+}
 
-  mControlPoints[csControlIndexOnSideFromOriginalCentroid1] = Plane::intersect(commonPlaneVertex0,
-                                                                               parallelToOriginalNormalBetweenSplitTriangles0,
-                                                                               perpendicularToSplitBetweenTrianglesInProportion0);
-  mControlPoints[csControlIndexOnSideToOriginalCentroid0] = Plane::intersect(commonPlaneVertex1,
-                                                                             parallelToOriginalNormalBetweenSplitTriangles1,
-                                                                             perpendicularToSplitBetweenTrianglesInProportion1);
+// The rest of the control points follow the C1 conditions of the Clough-Tocher split. Inside the original triangle each
+// control point next to a vertex shared by two split triangles is the average of its three neighbours there.
+void BezierTriangle::setMissingFields1(Vertex const &aOriginalCentroid, BezierTriangle const &aTriangleNext, BezierTriangle const &aTrianglePrevious) {
+  auto const &vertex0 = mControlPoints[csControlIndex300];
+  auto const &vertex1 = mControlPoints[csControlIndex030];
+  auto const &side0   = mControlPoints[csControlIndex210];
+  auto const &side1   = mControlPoints[csControlIndex120];
+  // The summation order is the same as in the neighbour computing the same point, to get exactly the same result.
+  mControlPoints[csControlIndex201] = (vertex0 + side0 + aTrianglePrevious.mControlPoints[csControlIndex120]) * csOneThird;
+  mControlPoints[csControlIndex021] = (vertex1 + aTriangleNext.mControlPoints[csControlIndex210] + side1) * csOneThird;
 
-  Plane const perpendicularToPlaneBetweenOriginalNeighboursViaControlPointsInOriginalSide = Plane::createFrom1vector2points(aPlaneBetweenOriginalNeighbours.mNormal, mControlPoints[csControlIndexOnOriginalSide0], mControlPoints[csControlIndexOnOriginalSide1]);
-  Plane const halfPlaneOfControlPointsInOriginalSide = Plane::createFrom1proportion2points(0.5, mControlPoints[csControlIndexOnOriginalSide0], mControlPoints[csControlIndexOnOriginalSide1]);
-  Plane const perpendicularToOriginalMedianInProportion = Plane::createFrom1proportion2points(csProportionControlOnOriginalMedian, (aOriginalCommonVertex0 + aOriginalCommonVertex1) / 2.0, aOriginalCentroid);
+  // The derivative across the original side at its middle must lie in the tangent plane there, which is common with the triangle
+  // on the other side. Its normal is the one of the plane between the original neighbours, made perpendicular to the common
+  // boundary curve. With the common tangent planes at the vertices, this makes the surface C1 across the original side.
+  Vector sideNormal = (vertex1 - vertex0).cross(mNeighbourDividerPlanes[0u].mNormal);   // Lies in the plane between the original neighbours.
+  if(sideNormal.dot(util::getNormal(vertex0, vertex1, aOriginalCentroid)) < 0.0) {
+    sideNormal = -sideNormal;
+  }
+  else { // Nothing to do
+  }
+  Vector const tangent = (vertex1 + side1 - side0 - vertex0).normalized();               // Of the boundary curve in its middle.
+  Vector const middleNormal = (sideNormal - tangent * sideNormal.dot(tangent)).normalized();
+  // The derivative towards the centroid in the middle of the original side is 3/4 * (r201 + 2 * (111 - (210 + 120) / 2) + r021),
+  // where r201 = 201 - (300 + 210) / 2 and r021 = 021 - (120 + 030) / 2. It must be perpendicular to middleNormal.
+  Vector const r201 = mControlPoints[csControlIndex201] - (vertex0 + side0) / 2.0;
+  Vector const r021 = mControlPoints[csControlIndex021] - (side1 + vertex1) / 2.0;
+  double const wanted = middleNormal.dot((side0 + side1) / 2.0) - middleNormal.dot(r201 + r021) / 2.0;
+  Vertex const flat = (vertex0 + vertex1 + aOriginalCentroid) * csOneThird;
+  Vector const lift = (mLiftDirection.isZero() ? middleNormal : mLiftDirection);
+  mControlPoints[csControlIndex111] = flat + lift * ((wanted - middleNormal.dot(flat)) / middleNormal.dot(lift));
 
-  mControlPoints[csControlIndexMiddle] = Plane::intersect(perpendicularToPlaneBetweenOriginalNeighboursViaControlPointsInOriginalSide,
-                                                          halfPlaneOfControlPointsInOriginalSide,
-                                                          perpendicularToOriginalMedianInProportion);
-
-  mNeighbourDividerPlanes[0u] = aPlaneBetweenOriginalNeighbours;
   mNeighbourDividerPlanes[0u].makeDistancePositive(mControlPoints[csControlIndexMiddle]);
 }
 
-void BezierTriangle::setMissingFields1(Vertex const &aOriginalCentroid, BezierTriangle const &aTriangleNext, BezierTriangle const &aTrianglePrevious) {
-  Vector const originalNormal = util::getNormal(mControlPoints[csControlIndexOriginalVertex0], mControlPoints[csControlIndexOriginalVertex1], aOriginalCentroid);
-  Plane const twoMiddlesAndSplitCloseToOriginalCommonVertex0 = Plane::createFrom3points(mControlPoints[csControlIndexOnSideFromOriginalCentroid1], mControlPoints[csControlIndexMiddle], aTrianglePrevious.mControlPoints[csControlIndexMiddle]);
-  Plane const twoMiddlesAndSplitCloseToOriginalCommonVertex1 = Plane::createFrom3points(mControlPoints[csControlIndexOnSideToOriginalCentroid0], aTriangleNext.mControlPoints[csControlIndexMiddle], mControlPoints[csControlIndexMiddle]);
-  Plane const parallelToOriginalNormalBetweenSplitTriangles0 = Plane::createFrom1vector2points(originalNormal, mControlPoints[csControlIndexOriginalVertex0], aOriginalCentroid);
-  Plane const parallelToOriginalNormalBetweenSplitTriangles1 = Plane::createFrom1vector2points(originalNormal, mControlPoints[csControlIndexOriginalVertex1], aOriginalCentroid);
-  Plane const perpendicularToSplitBetweenTrianglesInProportion0 = Plane::createFrom1proportion2points(csProportionControlOnOriginalVertexCentroid, aOriginalCentroid, mControlPoints[csControlIndexOriginalVertex0]);
-  Plane const perpendicularToSplitBetweenTrianglesInProportion1 = Plane::createFrom1proportion2points(csProportionControlOnOriginalVertexCentroid, aOriginalCentroid, mControlPoints[csControlIndexOriginalVertex1]);
-
-  mControlPoints[csControlIndexOnSideFromOriginalCentroid0] = Plane::intersect(twoMiddlesAndSplitCloseToOriginalCommonVertex0,
-                                                                               parallelToOriginalNormalBetweenSplitTriangles0,
-                                                                               perpendicularToSplitBetweenTrianglesInProportion0);
-  mControlPoints[csControlIndexOnSideToOriginalCentroid1] = Plane::intersect(twoMiddlesAndSplitCloseToOriginalCommonVertex1,
-                                                                             parallelToOriginalNormalBetweenSplitTriangles1,
-                                                                             perpendicularToSplitBetweenTrianglesInProportion1);
+void BezierTriangle::setMissingFields2(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &aTrianglePrevious) {
+  mControlPoints[csControlIndex102] = (mControlPoints[csControlIndex201] + mControlPoints[csControlIndex111] + aTrianglePrevious.mControlPoints[csControlIndex111]) * csOneThird;
+  mControlPoints[csControlIndex012] = (mControlPoints[csControlIndex021] + aTriangleNext.mControlPoints[csControlIndex111] + mControlPoints[csControlIndex111]) * csOneThird;
 }
 
-void BezierTriangle::setMissingFields2(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &) {
+void BezierTriangle::setMissingFields3(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &) {
   mControlPoints[csControlIndexAboveOriginalCentroid] = (mControlPoints[csControlIndexOnSideFromOriginalCentroid0] +
                                                          mControlPoints[csControlIndexOnSideToOriginalCentroid1] +
                                                          aTriangleNext.mControlPoints[csControlIndexOnSideToOriginalCentroid1]) / 3.0;
@@ -140,7 +139,7 @@ void BezierTriangle::evaluatePower(std::array<tCoefficient, csPowerCoefficientsS
                  a[csPowerIndex02] * (2.0 * aV) + a[csPowerIndex12] * (2.0 * uv) + a[csPowerIndex03] * (3.0 * v2);
 }
 
-void BezierTriangle::setMissingFields3(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &aTrianglePrevious) {
+void BezierTriangle::setMissingFields4(Vertex const &, BezierTriangle const &aTriangleNext, BezierTriangle const &aTrianglePrevious) {
   mNeighbourDividerPlanes[1u] = Plane::createFrom1vector2points(mUnderlyingPlane.mNormal + aTriangleNext.mUnderlyingPlane.mNormal,
                                                                 mControlPoints[csControlIndexOriginalVertex1],
                                                                 mControlPoints[csControlIndexAboveOriginalCentroid]);
@@ -325,6 +324,19 @@ void BezierTriangle::classifyIntersection(BezierIntersection &aResult, Ray const
     aResult.mWhat = BezierIntersection::What::cIntersect;
     aResult.mIntersection.mCosIncidence = aRay.mDirection.dot(aResult.mNormal);
   }
+}
+
+// The point where the line through aPoint in mLiftDirection meets aPlane, or the orthogonal projection for a zero mLiftDirection.
+Vertex BezierTriangle::liftOnto(Plane const &aPlane, Vertex const &aPoint) const {
+  Vertex result;
+  if(mLiftDirection.isZero()) {
+    result = aPlane.project(aPoint);
+  }
+  else {
+    auto const intersection = aPlane.intersect(aPoint, mLiftDirection);
+    result = (intersection.mValid ? intersection.mPoint : aPlane.project(aPoint));  // Parallel only in degenerate cases.
+  }
+  return result;
 }
 
 Vector BezierTriangle::getNormal(Vector const &aBarycentric) const {

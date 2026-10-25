@@ -317,7 +317,7 @@ void testBezierIntersection(char const * const aName, int32_t const aSectors, in
   if(!points.empty()) {
     points.push_back(points.back() + ray.mDirection * 11.0);
     std::cout << "error: " << original.getAverageErrorSquared(points) << '\n';
-    auto beam = visualizeRay(original, (points.back() - original.mStart).norm(), 0.02);
+    auto beam = visualizeRay(original, (points.back() - original.mStart).norm(), 0.01);
 
     name = "intersectionRay_";
     name += aName;
@@ -383,7 +383,7 @@ void testBezierRefraction(char const * const aName, int32_t const aSectors, int3
             copy += rays[r].mStart;
             std::copy(copy.cbegin(), copy.cend(), std::back_inserter(intersections));
 
-            auto beam = visualizeRay(previouses[r], (rays[r].mStart - previouses[r].mStart).norm(), 0.02);
+            auto beam = visualizeRay(previouses[r], (rays[r].mStart - previouses[r].mStart).norm(), 0.01);
             std::copy(beam.cbegin(), beam.cend(), std::back_inserter(beams));
             previouses[r] = rays[r];
 std::cout << r << (status == RefractionResult::cInside ? " inside\n" : " outside\n");
@@ -400,7 +400,7 @@ std::cout << (j ? "================\n" : "------------------\n");
     }
   }
   for(uint32_t r = 0u; r < rays.size(); ++r) {
-    auto beam = visualizeRay(previouses[r], 11.1, 0.02);
+    auto beam = visualizeRay(previouses[r], 11.1, 0.01);
     std::copy(beam.cbegin(), beam.cend(), std::back_inserter(beams));
   }
 
@@ -502,7 +502,7 @@ void testOpenBezierRefraction(char const * const aName, int32_t const aSectors, 
           copy += rays[r].mStart;
           std::copy(copy.cbegin(), copy.cend(), std::back_inserter(intersections));
 
-          auto beam = visualizeRay(previouses[r], (rays[r].mStart - previouses[r].mStart).norm(), 0.02);
+          auto beam = visualizeRay(previouses[r], (rays[r].mStart - previouses[r].mStart).norm(), 0.01);
           std::copy(beam.cbegin(), beam.cend(), std::back_inserter(beams));
           previouses[r] = rays[r];
           std::cout << r << (status == RefractionResult::cInside ? " inside\n" : " outside\n");
@@ -518,7 +518,7 @@ void testOpenBezierRefraction(char const * const aName, int32_t const aSectors, 
     std::cout << (j ? "================\n" : "------------------\n");
   }
   for(uint32_t r = 0u; r < rays.size(); ++r) {
-    auto beam = visualizeRay(previouses[r], 11.1, 0.02);
+    auto beam = visualizeRay(previouses[r], 11.1, 0.01);
     std::copy(beam.cbegin(), beam.cend(), std::back_inserter(beams));
   }
 
@@ -628,16 +628,16 @@ int main(int argc, char **argv) {
   testBezierSplitTall("15x5", 15, 5, ellipsoidAxes, 1);*/
 
   testBezierRefraction("21x15", 21, 15, ellipsoidAxes, 3.0, 3.0, 4, 4);
-  testOpenBezierRefraction("21x15", 21, 15, ellipsoidAxes, 3.0, 3.0, 4, 4);
+  testOpenBezierRefraction("47x31", 47, 31, ellipsoidAxes, 3.0, 3.0, 4, 4);
   visualizeFollowers("follow");
 
-/*  measureApproximation(0, 4, 1, ellipsoidAxes, 1);     // SplitSteps: 0 Sectors:  4 Belts:  1 Size: 1 4 2 Divisor: 1 error:      1.2555894
-  measureApproximation(0, 7, 3, ellipsoidAxes, 3);       // SplitSteps: 0 Sectors:  7 Belts:  3 Size: 1 4 2 Divisor: 3 error:   0.0022721614
-  measureApproximation(0, 15, 5, ellipsoidAxes, 3);      // SplitSteps: 0 Sectors: 15 Belts:  5 Size: 1 4 2 Divisor: 3 error:  1.9426199e-05
-  measureApproximation(1, 7, 3, ellipsoidAxes, 3);       // SplitSteps: 1 Sectors:  7 Belts:  3 Size: 1 4 2 Divisor: 3 error:  0.00070956006
-  measureApproximation(1, 15, 5, ellipsoidAxes, 3);      // SplitSteps: 1 Sectors: 15 Belts:  5 Size: 1 4 2 Divisor: 3 error:  0.00040229771
-  measureApproximation(2, 7, 3, ellipsoidAxes, 3);       // SplitSteps: 2 Sectors:  7 Belts:  3 Size: 1 4 2 Divisor: 3 error:   0.0011259826
-  measureApproximation(2, 15, 5, ellipsoidAxes, 3);      // SplitSteps: 2 Sectors: 15 Belts:  5 Size: 1 4 2 Divisor: 3 error:  6.7134395e-05
+/*  measureApproximation(0, 4, 1, ellipsoidAxes, 1);     // SplitSteps: 0 Sectors:  4 Belts:  1 Size: 1 4 2 Divisor: 1 error:      0.0183355
+  measureApproximation(0, 7, 3, ellipsoidAxes, 3);       // SplitSteps: 0 Sectors:  7 Belts:  3 Size: 1 4 2 Divisor: 3 error:  0.00055468142
+  measureApproximation(0, 15, 5, ellipsoidAxes, 3);      // SplitSteps: 0 Sectors: 15 Belts:  5 Size: 1 4 2 Divisor: 3 error:  1.3203548e-05
+  measureApproximation(1, 7, 3, ellipsoidAxes, 3);       // SplitSteps: 1 Sectors:  7 Belts:  3 Size: 1 4 2 Divisor: 3 error:  0.00073295409
+  measureApproximation(1, 15, 5, ellipsoidAxes, 3);      // SplitSteps: 1 Sectors: 15 Belts:  5 Size: 1 4 2 Divisor: 3 error:  4.8170479e-05
+  measureApproximation(2, 7, 3, ellipsoidAxes, 3);       // SplitSteps: 2 Sectors:  7 Belts:  3 Size: 1 4 2 Divisor: 3 error:   0.0014126713
+  measureApproximation(2, 15, 5, ellipsoidAxes, 3);      // SplitSteps: 2 Sectors: 15 Belts:  5 Size: 1 4 2 Divisor: 3 error:  4.8170479e-05
 */
 
   if(argc > 1) {
